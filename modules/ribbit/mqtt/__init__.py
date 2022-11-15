@@ -227,8 +227,26 @@ class MQTT:
             sh += 7
 
     async def close(self):
+        # TODO: Forcefully shut everything down for now.
+        # We should gracefully disconnect and wait for
+        # ongoing processes to finish.
         self._closed = True
-        await self._connection_task
+
+        self._is_connected.clear()
+        if self._sock is not None:
+            for task in self._tasks:
+                task.cancel()
+                await task
+
+            self._tasks = None
+
+            try:
+                self._sock.close()
+            except Exception:
+                pass
+
+            self._stream = None
+            self._reader = None
 
     def _new_pid(self):
         pid = self._next_pid
@@ -561,7 +579,7 @@ class MQTT:
                 await self._connect()
             except Exception as exc:
                 self._logger.exc(exc, "Failed to connect")
-                await asyncio.sleep_ms(1000)
+                await asyncio.sleep_ms(10000)
                 continue
 
             await self._close_event.wait()
