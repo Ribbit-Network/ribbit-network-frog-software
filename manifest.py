@@ -1,0 +1,5 @@
+include("$(MPY_DIR)/extmod/uasyncio")
+freeze("$(PORT_DIR)/modules")
+require("neopixel")
+require("ntptime")
+freeze("modules")
