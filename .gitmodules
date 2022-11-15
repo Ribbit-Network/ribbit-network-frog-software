@@ -2,3 +2,6 @@
 	path = vendor/micropython
 	url = git@github.com:damz/micropython.git
 	branch = pr/mbedtls
+[submodule "vendor/microdot"]
+	path = vendor/microdot
+	url = https://github.com/miguelgrinberg/microdot.git
