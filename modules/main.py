@@ -49,6 +49,7 @@ async def _main():
     global registry
 
     import ribbit.config as _config
+    import ribbit.golioth as _golioth
     import ribbit.http as _http
     import ribbit.network as _network
 
@@ -59,10 +60,15 @@ async def _main():
 
     config_schema = []
     config_schema.extend(_network.CONFIG_KEYS)
+    config_schema.extend(_golioth.CONFIG_KEYS)
 
     registry.config = _config.ConfigRegistry(config_schema)
 
     registry.network = _network.NetworkManager(registry.config)
+
+    _golioth.Golioth(
+        registry.config,
+    )
 
     _setup_improv(registry)
 
