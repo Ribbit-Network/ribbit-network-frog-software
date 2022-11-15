@@ -28,3 +28,7 @@ flash: build
 		0x8000 firmware/partition-table.bin \
 		0xd000 firmware/ota_data_initial.bin \
 		0x10000 firmware/micropython.bin
+
+.PHONY: clean
+clean:
+	rm -rf ${BUILD_DIR}
