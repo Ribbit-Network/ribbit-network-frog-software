@@ -11,10 +11,6 @@ from .config import DOMAIN_LOCAL, DOMAIN_NAMES
 Request.max_content_length = 1 << 30
 
 
-class Registry:
-    pass
-
-
 def build_app(registry):
     app = Microdot()
     app.registry = registry
