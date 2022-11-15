@@ -1,0 +1,4 @@
+[submodule "vendor/micropython"]
+	path = vendor/micropython
+	url = git@github.com:damz/micropython.git
+	branch = pr/mbedtls
