@@ -49,6 +49,7 @@ async def _main():
     global registry
 
     import ribbit.config as _config
+    import ribbit.http as _http
     import ribbit.network as _network
 
     class Registry:
@@ -64,6 +65,13 @@ async def _main():
     registry.network = _network.NetworkManager(registry.config)
 
     _setup_improv(registry)
+
+    app = _http.build_app(registry)
+    asyncio.create_task(
+        app.start_server(
+            port=80,
+        )
+    )
 
 
 if __name__ == "__main__":
