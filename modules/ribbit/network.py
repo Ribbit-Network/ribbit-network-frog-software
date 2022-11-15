@@ -17,7 +17,9 @@ CONFIG_KEYS = [
 ]
 
 
-State = collections.namedtuple("State", ["state", "connected", "ip", "netmask", "gateway", "dns"])
+State = collections.namedtuple(
+    "State", ["state", "connected", "ip", "netmask", "gateway", "dns"]
+)
 
 _state_disconnected = State(
     state=network.STAT_IDLE,
@@ -98,14 +100,16 @@ class NetworkManager:
                 status = iface.status()
                 if status == network.STAT_GOT_IP:
                     config = iface.ifconfig()
-                    self.state.set(State(
-                        state=status,
-                        connected=True,
-                        ip=config[0],
-                        netmask=config[1],
-                        gateway=config[2],
-                        dns=config[3],
-                    ))
+                    self.state.set(
+                        State(
+                            state=status,
+                            connected=True,
+                            ip=config[0],
+                            netmask=config[1],
+                            gateway=config[2],
+                            dns=config[3],
+                        )
+                    )
 
                 else:
                     self.state.set(_state_disconnected)

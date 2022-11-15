@@ -1,4 +1,3 @@
-
 import uasyncio as asyncio
 import sys
 import micropython
@@ -6,8 +5,8 @@ from micropython import const
 import logging
 
 
-_header = const(b'IMPROV')
-_version = const(b'1')
+_header = const(b"IMPROV")
+_version = const(b"1")
 
 STATE_READY = const(0x02)
 STATE_PROVISIONING = const(0x03)
@@ -17,7 +16,7 @@ _ERROR_NO_ERROR = const(0x00)
 _ERROR_INVALID_PACKET = const(0x01)
 _ERROR_UNKNOWN_COMMAND = const(0x02)
 _ERROR_UNABLE_TO_CONNECT = const(0x03)
-_ERROR_UNKNOWN = const(0xff)
+_ERROR_UNKNOWN = const(0xFF)
 
 _PACKET_CURRENT_STATE = const(0x01)
 _PACKET_ERROR_STATE = const(0x02)
@@ -32,7 +31,7 @@ _RPC_REQUEST_SCAN_NETWORKS = const(0x04)
 
 def _decode_string(buf):
     length = buf[0]
-    return buf[1+length:], buf[1:1+length]
+    return buf[1 + length :], buf[1 : 1 + length]
 
 
 class _PacketBuilder:
@@ -52,7 +51,7 @@ class _PacketBuilder:
             s = s.encode("utf-8")
         self._buffer[self._idx] = len(s)
         self._idx += 1
-        self._buffer[self._idx:self._idx+len(s)] = s
+        self._buffer[self._idx : self._idx + len(s)] = s
         self._idx += len(s)
 
     def _init_packet(self, typ, command=None):
@@ -72,17 +71,26 @@ class _PacketBuilder:
             self._buffer[10] = self._idx - 11
 
         checksum = 0
-        for c in self._buffer[:self._idx]:
-            checksum = (checksum + c) & 0xff
+        for c in self._buffer[: self._idx]:
+            checksum = (checksum + c) & 0xFF
 
         self._buffer[self._idx] = checksum
         self._idx += 1
-        return self._buffer[:self._idx]
+        return self._buffer[: self._idx]
 
 
 class ImprovHandler:
-
-    def __init__(self, product_name, product_version, hardware_name, device_name, scan_wifi_cb, set_wifi_settings_cb, current_state_cb, logger=None):
+    def __init__(
+        self,
+        product_name,
+        product_version,
+        hardware_name,
+        device_name,
+        scan_wifi_cb,
+        set_wifi_settings_cb,
+        current_state_cb,
+        logger=None,
+    ):
         if logger is None:
             logger = logging.getLogger(__name__)
         self._logger = logger
@@ -121,54 +129,54 @@ class ImprovHandler:
         calculated_checksum = 0
 
         while True:
-                await self._input.readinto(input_buf)
-                c = input_buf[0]
+            await self._input.readinto(input_buf)
+            c = input_buf[0]
 
-                if state == 10:
-                    state = 0
-                    if calculated_checksum != c:
-                        self._logger.info("Failed checksum!")
-                        continue
-
-                    await self._process_packet(packet_type, buf[:idx])
+            if state == 10:
+                state = 0
+                if calculated_checksum != c:
+                    self._logger.info("Failed checksum!")
                     continue
 
-                if state != 0:
-                    calculated_checksum = (calculated_checksum + c) & 0xff
+                await self._process_packet(packet_type, buf[:idx])
+                continue
 
-                if state == 0 and c == 0x03:  # CTRL+C
-                    raise KeyboardInterrupt()
+            if state != 0:
+                calculated_checksum = (calculated_checksum + c) & 0xFF
 
-                if 0 <= state < len(_header):
-                    if c != _header[state]:
-                        state = 0
-                        continue
-                    if state == 0:
-                        calculated_checksum = c
+            if state == 0 and c == 0x03:  # CTRL+C
+                raise KeyboardInterrupt()
+
+            if 0 <= state < len(_header):
+                if c != _header[state]:
+                    state = 0
+                    continue
+                if state == 0:
+                    calculated_checksum = c
+                state += 1
+
+            elif state == 6:  # version
+                if c != 1:
+                    state = 0
+                    continue
+                state += 1
+
+            elif state == 7:  # type
+                packet_type = c
+                state += 1
+
+            elif state == 8:  # length
+                packet_length = c
+                idx = 0
+                state += 1
+                if idx == packet_length:
                     state += 1
 
-                elif state == 6:  # version
-                    if c != 1:
-                        state = 0
-                        continue
+            elif state == 9:  # packet data
+                buf[idx] = c
+                idx += 1
+                if idx == packet_length:
                     state += 1
-    
-                elif state == 7:  # type
-                    packet_type = c
-                    state += 1
-
-                elif state == 8:  # length
-                    packet_length = c
-                    idx = 0
-                    state += 1
-                    if idx == packet_length:
-                        state += 1
-
-                elif state == 9:  # packet data
-                    buf[idx] = c
-                    idx += 1
-                    if idx == packet_length:
-                        state += 1
 
     async def _send_packet(self):
         self._output.write(self._builder._finalize_packet())
@@ -202,7 +210,9 @@ class ImprovHandler:
                 buf, password = _decode_string(buf)
 
                 try:
-                    await self._set_wifi_settings_cb(bytes(ssid).decode("utf-8"), bytes(password).decode("utf-8"))
+                    await self._set_wifi_settings_cb(
+                        bytes(ssid).decode("utf-8"), bytes(password).decode("utf-8")
+                    )
                 except Exception as exc:
                     self._logger.exc(exc, "Exception setting wifi")
                     self._builder._init_packet(_PACKET_ERROR_STATE)
@@ -240,4 +250,4 @@ class ImprovHandler:
                 await self._send_packet()
 
         else:
-            await self._send_packet(_PACKET_ERROR_STATE, b'0x01')
+            await self._send_packet(_PACKET_ERROR_STATE, b"0x01")
