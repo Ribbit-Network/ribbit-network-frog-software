@@ -168,7 +168,7 @@ class SDC30:
             )
             self._pressure_updated = False
 
-        if self._temperature_updated:
+        if self._temperature_updated and self.temperature is not None:
             offset = (
                 int(self.temperature * 100)
                 - self._temperature_reference
