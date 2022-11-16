@@ -52,6 +52,7 @@ async def _main():
     import ribbit.golioth as _golioth
     import ribbit.http as _http
     import ribbit.network as _network
+    import ribbit.time as _time
 
     class Registry:
         pass
@@ -65,6 +66,8 @@ async def _main():
     registry.config = _config.ConfigRegistry(config_schema)
 
     registry.network = _network.NetworkManager(registry.config)
+
+    registry.time_manager = _time.TimeManager(registry.network)
 
     _golioth.Golioth(
         registry.config,

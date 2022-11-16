@@ -1,11 +1,11 @@
 import time
 
 
-def isotime(t=None):
-    if t is not None:
-        parts = time.gmtime(t)
-    else:
-        parts = time.gmtime()
+def isotime(t):
+    if t is None:
+        return None
+
+    parts = time.gmtime(t)
 
     return "%04d-%02d-%02dT%02d:%02d:%02dZ" % (
         parts[0],

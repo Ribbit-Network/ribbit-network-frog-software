@@ -199,11 +199,6 @@ class SDC30:
         self.humidity = humidity
 
     def export(self):
-        if self.last_update is None:
-            return {
-                "last_update": None,
-            }
-
         return {
             "last_update": isotime(self.last_update),
             "temperature": self.temperature,

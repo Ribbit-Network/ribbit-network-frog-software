@@ -1,4 +1,5 @@
 import sys
+import time
 
 from ribbit.utils.time import isotime as _isotime
 
@@ -45,7 +46,7 @@ class Logger:
             if args:
                 msg = msg % args
             print(
-                _isotime(),
+                _isotime(time.time()),
                 ":",
                 self._level_str,
                 ":",

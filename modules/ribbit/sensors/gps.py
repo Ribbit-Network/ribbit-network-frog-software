@@ -1,8 +1,10 @@
 import logging
 import time
 
+import machine
 import uasyncio as asyncio
 from micropython import const
+import ribbit.time as _time
 from ribbit.utils.time import isotime
 
 _MAX_NMEA_PACKET_LEN = const(80)
@@ -27,10 +29,11 @@ def _append_checksum(packet):
 
 
 class GPS:
-    def __init__(self, i2c_bus, i2c_addr, interval=10, logger=None):
+    def __init__(self, i2c_bus, i2c_addr, interval=10, logger=None, time_manager=None):
         self._i2c_bus = i2c_bus
         self._i2c_addr = i2c_addr
         self._report_interval = interval
+        self._time_manager = time_manager
 
         if logger is None:
             logger = logging.getLogger(__name__)
@@ -45,6 +48,7 @@ class GPS:
         self.has_fix = False
         self.satellites = 0
         self._first_fix = False
+        self._last_time_update = None
 
         self._stop_event = asyncio.Event()
         self._read_loop_task = asyncio.create_task(self._read_loop())
@@ -156,51 +160,59 @@ class GPS:
             if len(parts) != 14:
                 return
 
-            latitude_raw = parts[1]
-            if latitude_raw != b"":
-                if latitude_raw[4:5] != b".":
-                    return
-                latitude = float(latitude_raw[:2]) + float(latitude_raw[2:]) / 60
-                if parts[2] == b"S":
-                    latitude = -latitude
-            else:
-                latitude = None
-
-            longitude_raw = parts[3]
-            if longitude_raw != b"":
-                if longitude_raw[5:6] != b".":
-                    return
-                longitude = float(longitude_raw[:3]) + float(longitude_raw[3:]) / 60
-                if parts[4] == b"W":
-                    longitude = -longitude
-            else:
-                longitude = None
-
-            self.last_update = time.time()
-            self.latitude = latitude
-            self.longitude = longitude
-
-            altitude_raw = parts[8]
-            if altitude_raw != b"":
-                self.altitude = float(altitude_raw)
-
-            geoid_height_raw = parts[10]
-            if geoid_height_raw != b"":
-                self.geoid_height = float(geoid_height_raw)
-
             self.has_fix = parts[5] != b"0"
             self.satellites = int(parts[6])
+            self.last_update = time.time()
 
-            if self.has_fix and not self._first_fix:
-                self._logger.info(
-                    "Got GPS fix: latitude=%f longitude=%f satellites=%d",
-                    self.latitude,
-                    self.longitude,
-                    self.satellites,
-                )
-                self._first_fix = True
+            if self.has_fix:
+                latitude_raw = parts[1]
+                if latitude_raw != b"":
+                    if latitude_raw[4:5] != b".":
+                        return
+                    latitude = float(latitude_raw[:2]) + float(latitude_raw[2:]) / 60
+                    if parts[2] == b"S":
+                        latitude = -latitude
+                else:
+                    latitude = None
+
+                longitude_raw = parts[3]
+                if longitude_raw != b"":
+                    if longitude_raw[5:6] != b".":
+                        return
+                    longitude = float(longitude_raw[:3]) + float(longitude_raw[3:]) / 60
+                    if parts[4] == b"W":
+                        longitude = -longitude
+                else:
+                    longitude = None
+
+                self.last_fix = self.last_update
+                self.latitude = latitude
+                self.longitude = longitude
+
+                altitude_raw = parts[8]
+                if altitude_raw != b"":
+                    self.altitude = float(altitude_raw)
+
+                geoid_height_raw = parts[10]
+                if geoid_height_raw != b"":
+                    self.geoid_height = float(geoid_height_raw)
+
+                if not self._first_fix:
+                    self._logger.info(
+                        "Got GPS fix: latitude=%f longitude=%f satellites=%d",
+                        self.latitude,
+                        self.longitude,
+                        self.satellites,
+                    )
+                    self._first_fix = True
 
         elif pkt[0:6] == b"GNZDA,":
+            if not self.has_fix:
+                # The GPS could return bogus date/time before it has a fix.
+                # To be on the safe side, only consider ZDA packets emitted while
+                # the GPS has a fix.
+                return
+
             parts = bytes(pkt[6:]).split(b",")
             if len(parts) != 6:
                 return
@@ -213,19 +225,14 @@ class GPS:
             month = int(parts[2])
             year = int(parts[3])
 
-            if year >= 2022:
-                import machine
-
-                machine.RTC().datetime((year, month, day, 0, hour, minute, second, 0))
+            if self._time_manager is not None:
+                t = time.mktime((year, month, day, hour, minute, second, 0, 0))
+                self._time_manager.set_time(_time.TIMESOURCE_GPS, t)
 
     def export(self):
-        if self.last_update is None:
-            return {
-                "last_update": None,
-            }
-
         return {
             "last_update": isotime(self.last_update),
+            "last_fix": isotime(self.last_fix),
             "latitude": self.latitude,
             "longitude": self.longitude,
             "altitude": self.altitude,
