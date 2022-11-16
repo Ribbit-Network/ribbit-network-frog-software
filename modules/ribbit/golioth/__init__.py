@@ -221,6 +221,9 @@ class Golioth:
         req = json.loads(message.data)
         self._logger.info("Firmware payload received: %s", req)
 
+        if req.get("components", None) is None:
+            return
+
         for component in req["components"]:
             if component["package"] == "main":
                 if component["version"] != __version__.version:
