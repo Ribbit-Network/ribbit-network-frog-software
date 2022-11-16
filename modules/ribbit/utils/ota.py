@@ -30,7 +30,11 @@ class OTAManager:
         self._logger.info("Block size is %d, update size is %d", block_size, u.size)
 
         if block_size * block_count < u.size:
-            raise Exception("Update is too large: has %d bytes, need %d bytes", block_size * block_count, u.size)
+            raise Exception(
+                "Update is too large: has %d bytes, need %d bytes",
+                block_size * block_count,
+                u.size,
+            )
 
         multiplier = 4
         buf = memoryview(bytearray(block_size * multiplier))
@@ -38,9 +42,11 @@ class OTAManager:
         total_read = 0
         while total_read < u.size:
             if block_id % 10 == 0:
-                self._logger.info("Processing block %d (%.2f %%)", block_id, 100*total_read/u.size)
+                self._logger.info(
+                    "Processing block %d (%.2f %%)", block_id, 100 * total_read / u.size
+                )
 
-            dest_buf = buf[:u.size - total_read]
+            dest_buf = buf[: u.size - total_read]
 
             n = 0
             while n < len(dest_buf):
@@ -65,7 +71,9 @@ class OTAManager:
             partition.writeblocks(block_id, buf)
             block_id += multiplier
 
-        partition.ioctl(3, None)  # Sync the device, probably a no-op but it doesn't hurt
+        partition.ioctl(
+            3, None
+        )  # Sync the device, probably a no-op but it doesn't hurt
 
         self._logger.info("Finished flashing")
 

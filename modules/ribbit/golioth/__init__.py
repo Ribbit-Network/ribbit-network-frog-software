@@ -212,6 +212,7 @@ class Golioth:
         )
 
         import machine
+
         machine.reset()
 
     async def _on_golioth_firmware(self, client, message):
