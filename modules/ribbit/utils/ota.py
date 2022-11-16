@@ -1,0 +1,76 @@
+import hashlib
+import logging
+from binascii import hexlify
+
+import esp32
+
+
+class OTAUpdate:
+    def __init__(self, reader, sha256_hash, size):
+        self.reader = reader
+        self.sha256_hash = sha256_hash
+        self.size = size
+
+
+class OTAManager:
+    def __init__(self):
+        self._logger = logging.getLogger(__name__)
+
+    def successful_boot(self):
+        esp32.Partition.mark_app_valid_cancel_rollback()
+
+    async def do_ota_update(self, u):
+        self._logger.info("Starting OTA update")
+        partition = esp32.Partition(esp32.Partition.RUNNING).get_next_update()
+        h = hashlib.sha256()
+
+        block_count = partition.ioctl(4, None)
+        block_size = partition.ioctl(5, None)
+
+        self._logger.info("Block size is %d, update size is %d", block_size, u.size)
+
+        if block_size * block_count < u.size:
+            raise Exception("Update is too large: has %d bytes, need %d bytes", block_size * block_count, u.size)
+
+        multiplier = 4
+        buf = memoryview(bytearray(block_size * multiplier))
+        block_id = 0
+        total_read = 0
+        while total_read < u.size:
+            if block_id % 10 == 0:
+                self._logger.info("Processing block %d (%.2f %%)", block_id, 100*total_read/u.size)
+
+            dest_buf = buf[:u.size - total_read]
+
+            n = 0
+            while n < len(dest_buf):
+                sz = await u.reader.readinto(dest_buf[n:])
+                if sz == 0:
+                    break
+                n += sz
+
+            if n != len(dest_buf):
+                raise Exception("unexpected EOF")
+
+            total_read += n
+
+            h.update(buf[:n])
+
+            # For the last block, zero out the rest of the buffer
+            while n < len(buf):
+                buf[n] = 0
+                n += 1
+
+            partition.ioctl(6, block_id)
+            partition.writeblocks(block_id, buf)
+            block_id += multiplier
+
+        partition.ioctl(3, None)  # Sync the device, probably a no-op but it doesn't hurt
+
+        self._logger.info("Finished flashing")
+
+        hash = hexlify(h.digest())
+        if hash.decode("ascii") != u.sha256_hash:
+            raise Exception("Wrong hash: got %s, expected %s", hash, u.sha256_hash)
+
+        partition.set_boot()

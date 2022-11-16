@@ -6,6 +6,7 @@ import uasyncio as asyncio
 
 import ribbit.config as _config
 import ribbit.mqtt as _mqtt
+import ribbit.utils.ota as _ota
 
 
 # gRPC return codes
@@ -59,6 +60,7 @@ class Golioth:
         self._config = config
         self._commands = commands or {}
         self._mqtt = None
+        self._ota_manager = _ota.OTAManager()
 
         asyncio.create_task(self._loop())
 
@@ -89,10 +91,15 @@ class Golioth:
                         subscriptions={
                             ".c": self._on_golioth_config,
                             ".rpc": self._on_golioth_rpc,
+                            ".u/desired": self._on_golioth_firmware,
                         },
+                        on_connect_task=self._on_connect,
                     )
 
                 await cfg_watcher.wait()
+
+    async def _on_connect(self, client):
+        await self._send_firmware_report(client)
 
     async def _on_golioth_config(self, client, message):
         req = json.loads(message.data)
@@ -152,3 +159,68 @@ class Golioth:
             status = _RPC_UNIMPLEMENTED
 
         await self._reply_rpc(client, req, status, details)
+
+    async def _send_firmware_report(
+        self, client, package="main", state=0, reason=0, target_version=None
+    ):
+        import __version__
+
+        req = {
+            "state": state,
+            "reason": reason,
+            "package": package,
+            "version": __version__.version,
+        }
+
+        if target_version is not None:
+            req["target"] = target_version
+
+        await client.publish(
+            ".u/c/" + package,
+            json.dumps(req),
+            qos=0,
+        )
+
+    async def _update_firmware(self, client, component):
+        self._logger.info("Starting firmware update")
+
+        await self._send_firmware_report(
+            client,
+            state=1,
+            target_version=component["version"],
+        )
+
+        self._logger.info("Component %s", component)
+
+        async def _do_firmware(client, message):
+            self._logger.info("Receiving firmware package")
+
+            await self._ota_manager.do_ota_update(
+                _ota.OTAUpdate(
+                    reader=message.reader,
+                    sha256_hash=component["hash"],
+                    size=component["size"],
+                )
+            )
+
+        await client.get(component["uri"][1:], _do_firmware, stream=True)
+
+        await self._send_firmware_report(
+            client,
+            state=2,
+            target_version=component["version"],
+        )
+
+        import machine
+        machine.reset()
+
+    async def _on_golioth_firmware(self, client, message):
+        import __version__
+
+        req = json.loads(message.data)
+        self._logger.info("Firmware payload received: %s", req)
+
+        for component in req["components"]:
+            if component["package"] == "main":
+                if component["version"] != __version__.version:
+                    asyncio.create_task(self._update_firmware(client, component))
