@@ -369,8 +369,10 @@ class MQTT:
         res = _AsyncResult()
 
         async def _handler(client, message):
-            await handler(client, message)
-            res.set(None)
+            try:
+                res.set(await handler(client, message))
+            except BaseException as exc:
+                res.set_exception(exc)
 
         await self.subscribe(topic, _handler, stream=True)
         try:
