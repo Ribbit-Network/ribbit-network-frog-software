@@ -41,25 +41,69 @@ _state_connecting = State(
 )
 
 
+class _ConnectionRequest:
+    def __init__(self, network_manager, timeout_ms=None):
+        self._network_manager = network_manager
+        self._timeout_ms = timeout_ms
+
+    async def __aenter__(self):
+        self._network_manager._connected_refs += 1
+        if self._network_manager._connected_refs == 0:
+            self._network_manager._connected_ref_event.set()
+
+        if self._timeout_ms is not None:
+            await asyncio.wait_for_ms(
+                self._network_manager.connected.wait(), self._timeout_ms
+            )
+        else:
+            await self._network_manager.connected.wait()
+
+    async def __aexit__(self, exc_type, exc, tb):
+        self._network_manager._connected_refs -= 1
+        if self._network_manager._connected_refs == 0:
+            self._network_manager._connected_ref_event.set()
+
+
 class NetworkManager:
     def __init__(
-        self, config, poll_interval_connected_ms=5000, poll_interval_connecting_ms=500
+        self,
+        config,
+        always_on=True,
+        poll_interval_connected_ms=5000,
+        poll_interval_connecting_ms=500,
     ):
         self._config = config
         self._iface = network.WLAN(network.STA_IF)
+        self._iface.active(False)
         self._logger = logging.getLogger(__name__)
 
         self._reconnect_event = asyncio.Event()
         self.state = WatchableValue(_state_disconnected)
+        self.connected = asyncio.Event()
 
         self._network_loop_task = asyncio.create_task(self._network_loop())
         self._poll_interval_connected_ms = poll_interval_connected_ms
         self._poll_interval_connecting_ms = poll_interval_connecting_ms
 
+        self._on_connect_tasks = []
+
+        self._connected_refs = 0
+        self._connected_ref_event = asyncio.Event()
+
+        if always_on:
+            self._connected_refs += 1
+
+    def connection(self, timeout_ms=None):
+        """Returns a context manager that ensures that the network is connected"""
+        return _ConnectionRequest(self, timeout_ms=timeout_ms)
+
     def force_reconnect(self, reason="unknown reason"):
         if not self._reconnect_event.is_set():
             self._logger.info("Forcing a reconnection: %s", reason)
             self._reconnect_event.set()
+
+    def on_connect_task(self, cb):
+        self._on_connect_tasks.append(cb)
 
     async def scan(self):
         # Force cancel the network loop, as most chips do not support
@@ -97,6 +141,7 @@ class NetworkManager:
                 force_reconnect = cfg_watcher.changed or self._reconnect_event.is_set()
                 ssid, password = cfg_watcher.get()
                 has_config = ssid is not None and password is not None
+                should_connect = has_config and (self._connected_refs > 0)
 
                 status = iface.status()
                 if status == network.STAT_GOT_IP:
@@ -111,25 +156,27 @@ class NetworkManager:
                             dns=config[3],
                         )
                     )
+                    if not self.connected.is_set():
+                        self.connected.set()
+                        for task in self._on_connect_tasks:
+                            await task(self.state.value)
 
                 else:
                     self.state.set(_state_disconnected)
+                    self.connected.clear()
 
-                if (
-                    force_reconnect
-                    or not connection_started
-                    or (connection_started and not has_config)
-                ):
+                if force_reconnect or (connection_started and not should_connect):
                     self._logger.info("Deactivating wifi")
                     self.state.set(_state_disconnected)
                     iface.active(False)
                     connection_started = False
 
-                if has_config and not connection_started:
+                if not connection_started and should_connect:
                     self._reconnect_event.clear()
 
-                    self._logger.info("Activating to wifi")
+                    self._logger.info("Activating wifi")
                     self.state.set(_state_connecting)
+                    iface.active(False)
                     iface.active(True)
                     iface.connect(ssid, password)
                     connection_started = True
