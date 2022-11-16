@@ -64,6 +64,7 @@ class TimeManager:
 
         self.last_time_source = source
         self.last_time_update = t
+        self.has_valid_time = True
 
     async def _on_network_connect(self, _state):
         if self.needs_time_update(TIMESOURCE_NTP):
@@ -78,3 +79,10 @@ class TimeManager:
 
             if self.is_valid_time(t):
                 self.set_time(TIMESOURCE_NTP, t)
+
+    def export(self):
+        return {
+            "source": SOURCE_NAMES[self.last_time_source],
+            "last_update": _isotime(self.last_time_update),
+            "has_valid_time": self.has_valid_time,
+        }
