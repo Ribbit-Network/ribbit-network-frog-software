@@ -149,6 +149,7 @@ class MQTT:
         will=None,
         ssl=False,
         ssl_params=None,
+        on_connect_task=None,
     ):
         self._logger = logging.getLogger(__name__)
 
@@ -195,6 +196,8 @@ class MQTT:
         self._is_connected = asyncio.Event()  # Current connection state
         keepalive = 1000 * self._keepalive  # ms
         self._ping_interval = keepalive // 4 if keepalive else 20000
+
+        self._on_connect_task = on_connect_task
 
         self._tasks = None
         self._connection_task = asyncio.create_task(self._connection_loop())
@@ -571,7 +574,8 @@ class MQTT:
                 self._logger.info("Subscribing to topic %s", topic)
                 await self.subscribe(topic, handler)
 
-            self._logger.info("All done!")
+        if self._on_connect_task is not None:
+            await self._on_connect_task(self)
 
     async def _connection_loop(self):
         while not self._closed:
