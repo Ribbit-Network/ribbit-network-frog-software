@@ -2,6 +2,7 @@ import collections
 import logging
 import network
 import uasyncio as asyncio
+from micropython import const
 
 import ribbit.config as _config
 from ribbit.utils.asyncio import WatchableValue
