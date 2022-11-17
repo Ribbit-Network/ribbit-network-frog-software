@@ -701,7 +701,6 @@ class _Router:
                     must_load = True
 
         if must_load or not matching_handlers:
-            client._logger.info("Receiving body for %s", message.topic)
             message = Message(
                 topic=message.topic,
                 reader=None,
