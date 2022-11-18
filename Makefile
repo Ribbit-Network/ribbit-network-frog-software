@@ -31,4 +31,4 @@ flash: build
 
 .PHONY: clean
 clean:
-	rm -rf ${BUILD_DIR}
+	rm -rf ${BUILD_DIR} ${UNIX_DIR}/build-standard
