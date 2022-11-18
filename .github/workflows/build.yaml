@@ -1,0 +1,37 @@
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Fetch submodules
+      run: |
+          git submodule update --init --depth=1
+          ( cd vendor/micropython/ports/unix ; make submodules )
+          ( cd vendor/micropython/ports/esp32 ; make submodules )
+
+    - name: Test
+      run: |
+          make test
+
+    - name: Build
+      run: |
+          docker run -t -u "$UID:$GID" -e "HOME=/app" -v "${GITHUB_WORKSPACE}:/app" -w "/app" espressif/idf:v4.4.1 make
+      shell: bash
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+
+      with:
+        name: firmware
+        path: |
+          firmware
