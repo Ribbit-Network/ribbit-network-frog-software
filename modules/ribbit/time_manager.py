@@ -2,7 +2,6 @@ import logging
 import time
 
 import machine
-import ntptime
 import uasyncio as asyncio
 from micropython import const
 from ribbit.utils.time import isotime as _isotime
@@ -68,6 +67,11 @@ class TimeManager:
 
     async def _on_network_connect(self, _state):
         if self.needs_time_update(TIMESOURCE_NTP):
+            try:
+                import ntptime
+            except ImportError:
+                return
+
             self._logger.info("Fetching current time via NTP")
             for _ in range(5):
                 try:

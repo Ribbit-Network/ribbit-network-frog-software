@@ -4,7 +4,7 @@ import time
 import machine
 import uasyncio as asyncio
 from micropython import const
-import ribbit.time as _time
+import ribbit.time_manager as _time
 from ribbit.utils.time import isotime
 
 _MAX_NMEA_PACKET_LEN = const(80)
