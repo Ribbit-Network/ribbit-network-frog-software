@@ -77,10 +77,10 @@ class Logger:
         sys.print_exception(e, _stream)
 
 
-_loggers = {}
+_loggers: dict[str, Logger] = {}
 
 
-def getLogger(name="root"):
+def getLogger(name: str = "root") -> Logger:
     if name in _loggers:
         return _loggers[name]
     l = Logger(name)
