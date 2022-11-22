@@ -52,7 +52,7 @@ async def _main():
     import ribbit.golioth as _golioth
     import ribbit.http as _http
     import ribbit.network as _network
-    import ribbit.time as _time
+    import ribbit.time_manager as _time
 
     class Registry:
         pass
