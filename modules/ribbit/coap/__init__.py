@@ -5,6 +5,7 @@ import random
 import os
 import ssl
 import uasyncio as asyncio
+import uasyncio.core as _asyncio_core
 
 from micropython import const
 
@@ -84,6 +85,14 @@ class COAPException(Exception):
     pass
 
 
+class COAPDisconnectedError(COAPException):
+    pass
+
+
+class COAPRequestTimeoutError(COAPException):
+    pass
+
+
 class COAPInvalidPacketError(COAPException):
     pass
 
@@ -126,6 +135,35 @@ class _WaitGroup:
 
         self._done_ev = ev = asyncio.Event()
         return await ev.wait()
+
+
+class _DTLSocket:
+    def __init__(self, s):
+        self.s = s
+
+    def close(self):
+        self.s.close()
+
+    def read(self, n=-1):
+        while True:
+            yield _asyncio_core._io_queue.queue_read(self.s)
+            r = self.s.recv(n)
+            if r is not None:
+                return r
+
+    def readinto(self, buf):
+        yield _asyncio_core._io_queue.queue_read(self.s)
+        return self.s.recv_into(buf)
+
+    def write(self, buf):
+        if not isinstance(buf, memoryview):
+            buf = memoryview(buf)
+        off = 0
+        while off < len(buf):
+            yield _asyncio_core._io_queue.queue_write(self.s)
+            ret = self.s.send(buf[off:])
+            if ret is not None:
+                off += ret
 
 
 class CoapOption:
@@ -285,10 +323,9 @@ def _write_packet_header_info(buffer, packet):
 def _coap_option_delta(v):
     if v < 13:
         return 0xFF & v
-    elif v <= 0xFF + 13:
+    if v <= 0xFF + 13:
         return 13
-    else:
-        return 14
+    return 14
 
 
 def _write_packet_options(buffer, packet):
@@ -337,9 +374,11 @@ class Coap:
         port=_DEFAULT_PORT,
         ssl=False,
         ssl_options=None,
-        ack_timeout_ms=2000,
+        ack_timeout_ms=2_000,
         ack_random_factor=1.5,
         max_retransmit=4,
+        ping_interval_ms=30_000,
+        ping_timeout_ms=5_000,
     ):
         self._logger = logging.getLogger(__name__)
         self._callbacks = {}
@@ -353,15 +392,20 @@ class Coap:
         self._addr = socket.getaddrinfo(self._host, self._port)[0][-1]
 
         self._sock = None
-        self._stream = None
+        self._connection_epoch = 0
         self._next_message_id = 0
-
+        self._read_loop_task = None
+        self._ping_loop_task = None
         self._in_flight_requests = {}
+        self._force_reconnect = asyncio.Event()
 
         # Protocol parameters:
         self._ack_timeout_min_ms = ack_timeout_ms
         self._ack_timeout_max_ms = int(self._ack_timeout_min_ms * ack_random_factor)
         self._max_retransmit = max_retransmit
+
+        self._ping_interval_ms = ping_interval_ms
+        self._ping_timeout_ms = ping_timeout_ms
 
     def _get_message_id(self):
         message_id = self._next_message_id
@@ -372,20 +416,62 @@ class Coap:
         return message_id
 
     async def connect(self):
-        self._sock = sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._logger.info("Connecting to CoAP server")
+        self._force_reconnect.clear()
+        self._connection_epoch += 1
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setblocking(False)
-        sock.bind(("", 0))
+        sock.bind(socket.getaddrinfo("0.0.0.0", 0)[0][-1])
         sock.connect(self._addr)
 
         if self._ssl:
             sock = ssl.wrap_socket(
                 sock,
                 dtls=True,
-                do_handshake=True,
+                do_handshake=False,
                 **self._ssl_opts,
             )
 
-        self._stream = asyncio.StreamReader(sock)
+        self._sock = _DTLSocket(sock)
+
+        self._read_loop_task = asyncio.create_task(self._read_loop())
+
+        await asyncio.wait_for_ms(self.ping(), self._ping_timeout_ms)
+
+        self._ping_loop_task = asyncio.create_task(self._ping_loop())
+
+    async def disconnect(self):
+        self._logger.info("Disconnecting from CoAP server")
+
+        if self._read_loop_task is not None:
+            self._read_loop_task.cancel()
+        if self._ping_loop_task is not None:
+            self._ping_loop_task.cancel()
+
+        for ev in self._in_flight_requests.values():
+            ev.disconnected = True
+            ev.set()
+
+        self._in_flight_requests = {}
+        self._sock.close()
+        self._sock = None
+
+    async def connect_loop(self):
+        while True:
+            try:
+                await self.connect()
+            except Exception as exc:
+                self._logger.exc(exc, "Exception while trying to connect")
+                await asyncio.sleep_ms(10_000)
+                continue
+
+            await self._force_reconnect.wait()
+
+            try:
+                self.disconnect()
+            except Exception:
+                pass
 
     async def send_packet(self, packet):
         if packet.message_id is None:
@@ -408,8 +494,11 @@ class Coap:
         # self._logger.info(">>>>>> %s (%d bytes)", packet, len(buffer))
         # self._logger.info(">>>>>> %s", binascii.hexlify(buffer))
 
-        self._stream.write(buffer)
-        await self._stream.drain()
+        try:
+            await self._sock.write(buffer)
+        except Exception:
+            self._force_reconnect.set()
+            raise
 
     async def _send_ack(self, message_id):
         packet = CoapPacket()
@@ -418,6 +507,21 @@ class Coap:
         packet.message_id = message_id
         return await self.send_packet(packet)
 
+    async def ping(self):
+        packet = CoapPacket()
+        packet.type = TYPE_CON
+        packet.method = METHOD_EMPTY_MESSAGE
+        return await self.request(packet)
+
+    async def _ping_loop(self):
+        while True:
+            await asyncio.sleep_ms(self._ping_interval_ms)
+            try:
+                await asyncio.wait_for_ms(self.ping(), self._ping_timeout_ms)
+            except asyncio.TimeoutError:
+                self._force_reconnect.set()
+                return
+
     async def request(self, packet):
         packet.message_id = self._get_message_id()
         if packet.token is None:
@@ -425,6 +529,8 @@ class Coap:
 
         ev = asyncio.Event()
         ev.acked = False
+        ev.disconnected = False
+        ev.only_ack = packet.method == METHOD_EMPTY_MESSAGE
         self._in_flight_requests[packet.message_id] = ev
         self._in_flight_requests[packet.token] = ev
 
@@ -433,6 +539,7 @@ class Coap:
         )
         retransmissions = 0
 
+        epoch = self._connection_epoch
         try:
             while not ev.acked:
                 await self.send_packet(packet)
@@ -441,18 +548,24 @@ class Coap:
                     await asyncio.wait_for_ms(ev.wait(), retransmit_delay_ms)
                     break
                 except asyncio.TimeoutError:
+                    if self._connection_epoch != epoch:
+                        raise COAPDisconnectedError()
+
                     if retransmissions == self._max_retransmit:
-                        raise COAPException("no response from server")
+                        raise COAPRequestTimeoutError()
                     retransmissions += 1
                     retransmit_delay_ms *= 2
 
             if not ev.is_set():
                 await ev.wait()
+            if ev.disconnected:
+                raise COAPDisconnectedError()
             return ev.response
 
         finally:
-            self._in_flight_requests.pop(packet.message_id, None)
-            self._in_flight_requests.pop(packet.token, None)
+            if self._connection_epoch == epoch:
+                self._in_flight_requests.pop(packet.message_id, None)
+                self._in_flight_requests.pop(packet.token, None)
 
     def _read_bytes_from_socket(self, numOfBytes):
         try:
@@ -460,16 +573,21 @@ class Coap:
         except Exception:
             return (None, None)
 
-    async def _receive_loop(self, blocking=True):
+    async def _read_loop(self):
         while True:
-            buffer = await self._stream.read(_BUF_MAX_SIZE)
-            if buffer is None:
-                continue
+            try:
+                buffer = await self._sock.read(_BUF_MAX_SIZE)
+                if buffer is None:
+                    continue
 
-            buffer = memoryview(buffer)
+                buffer = memoryview(buffer)
 
-            packet = CoapPacket()
-            _parse_packet(buffer, packet)
+                packet = CoapPacket()
+                _parse_packet(buffer, packet)
+
+            except Exception:
+                self._force_reconnect.set()
+                return
 
             # self._logger.info("<<<<<< %s", packet)
 
@@ -481,16 +599,18 @@ class Coap:
                 request_ev = self._in_flight_requests.get(packet.message_id, None)
                 if request_ev is not None:
                     request_ev.acked = True
+                    if request_ev.only_ack:
+                        request_ev.response = None
+                        request_ev.set()
                 continue
 
-            else:
-                request_id = packet.token
-                if request_id is None:
-                    request_id = packet.message_id
-                request_ev = self._in_flight_requests.get(request_id, None)
-                if request_ev is not None:
-                    request_ev.response = packet
-                    request_ev.set()
+            request_id = packet.token
+            if request_id is None:
+                request_id = packet.message_id
+            request_ev = self._in_flight_requests.get(request_id, None)
+            if request_ev is not None:
+                request_ev.response = packet
+                request_ev.set()
 
 
 def encode_uint_option(v):
