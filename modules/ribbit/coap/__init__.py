@@ -575,6 +575,35 @@ class Coap:
                 self._in_flight_requests.pop(packet.message_id, None)
                 self._in_flight_requests.pop(packet.token, None)
 
+    async def get(self, path):
+        packet = CoapPacket()
+        packet.type = TYPE_CON
+        packet.method = METHOD_GET
+        packet.set_uri_path(path)
+        return await self.request(packet)
+
+    async def post(self, path, data):
+        packet = CoapPacket()
+        packet.type = TYPE_CON
+        packet.method = METHOD_POST
+        packet.set_uri_path(path)
+        packet.payload = data
+        return await self.request(packet)
+
+    async def put(self, path):
+        packet = CoapPacket()
+        packet.type = TYPE_CON
+        packet.method = METHOD_PUT
+        packet.set_uri_path(path)
+        return await self.request(packet)
+
+    async def delete(self, path):
+        packet = CoapPacket()
+        packet.type = TYPE_CON
+        packet.method = METHOD_DELETE
+        packet.set_uri_path(path)
+        return await self.request(packet)
+
     def _read_bytes_from_socket(self, numOfBytes):
         try:
             return self.sock.recvfrom(numOfBytes)
