@@ -407,6 +407,8 @@ class Coap:
         self._ping_interval_ms = ping_interval_ms
         self._ping_timeout_ms = ping_timeout_ms
 
+        self._on_connect_tasks = []
+
     def _get_message_id(self):
         message_id = self._next_message_id
         if message_id < 0xFFFF:
@@ -414,6 +416,9 @@ class Coap:
         else:
             self._next_message_id = 0
         return message_id
+
+    def on_connect(self, cb):
+        self._on_connect_tasks.append(cb)
 
     async def connect(self):
         self._logger.info("Connecting to CoAP server")
@@ -440,6 +445,9 @@ class Coap:
         await asyncio.wait_for_ms(self.ping(), self._ping_timeout_ms)
 
         self._ping_loop_task = asyncio.create_task(self._ping_loop())
+
+        for task in self._on_connect_tasks:
+            await task(self)
 
     async def disconnect(self):
         self._logger.info("Disconnecting from CoAP server")
