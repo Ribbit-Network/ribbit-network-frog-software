@@ -5,7 +5,7 @@ from micropython import const
 import uasyncio as asyncio
 
 import ribbit.config as _config
-import ribbit.mqtt as _mqtt
+import ribbit.coap as _coap
 import ribbit.utils.ota as _ota
 
 
@@ -30,27 +30,25 @@ _RPC_UNAUTHENTICATED = const(16)
 
 
 CONFIG_GOLIOTH_ENABLED = const("golioth.enabled")
-CONFIG_GOLIOTH_MQTT_HOST = const("golioth.mqtt.host")
-CONFIG_GOLIOTH_MQTT_PORT = const("golioth.mqtt.port")
-CONFIG_GOLIOTH_MQTT_USER = const("golioth.mqtt.user")
-CONFIG_GOLIOTH_MQTT_PASSWORD = const("golioth.mqtt.password")
+CONFIG_GOLIOTH_HOST = const("golioth.host")
+CONFIG_GOLIOTH_PORT = const("golioth.port")
+CONFIG_GOLIOTH_USER = const("golioth.user")
+CONFIG_GOLIOTH_PASSWORD = const("golioth.password")
 
 _CONFIG_KEYS = [
     CONFIG_GOLIOTH_ENABLED,
-    CONFIG_GOLIOTH_MQTT_HOST,
-    CONFIG_GOLIOTH_MQTT_PORT,
-    CONFIG_GOLIOTH_MQTT_USER,
-    CONFIG_GOLIOTH_MQTT_PASSWORD,
+    CONFIG_GOLIOTH_HOST,
+    CONFIG_GOLIOTH_PORT,
+    CONFIG_GOLIOTH_USER,
+    CONFIG_GOLIOTH_PASSWORD,
 ]
 
 CONFIG_KEYS = [
     _config.ConfigKey(CONFIG_GOLIOTH_ENABLED, True, _config.Boolean),
-    _config.ConfigKey(CONFIG_GOLIOTH_MQTT_HOST, "mqtt.golioth.io", _config.String),
-    _config.ConfigKey(CONFIG_GOLIOTH_MQTT_PORT, 8883, _config.Integer),
-    _config.ConfigKey(CONFIG_GOLIOTH_MQTT_USER, None, _config.String),
-    _config.ConfigKey(
-        CONFIG_GOLIOTH_MQTT_PASSWORD, None, _config.String, protected=True
-    ),
+    _config.ConfigKey(CONFIG_GOLIOTH_HOST, "coap.golioth.io", _config.String),
+    _config.ConfigKey(CONFIG_GOLIOTH_PORT, 5684, _config.Integer),
+    _config.ConfigKey(CONFIG_GOLIOTH_USER, None, _config.String),
+    _config.ConfigKey(CONFIG_GOLIOTH_PASSWORD, None, _config.String, protected=True),
 ]
 
 
@@ -59,8 +57,10 @@ class Golioth:
         self._logger = logging.getLogger(__name__)
         self._config = config
         self._commands = commands or {}
-        self._mqtt = None
+        self._coap = None
         self._ota_manager = _ota.OTAManager()
+
+        self.register_rpc("ping", self._pong_rpc)
 
         asyncio.create_task(self._loop())
 
@@ -71,38 +71,36 @@ class Golioth:
 
                 enabled = enabled and (user is not None and password is not None)
 
-                if self._mqtt is not None:
+                if self._coap is not None:
                     self._logger.info("Stopping Golioth integration")
-                    self._mqtt.close()
-                    self._mqtt = None
+                    self._coap.close()
+                    self._coap = None
 
                 if enabled:
                     self._logger.info("Starting Golioth integration")
-                    self._mqtt = _mqtt.MQTT(
-                        client_id=user,
-                        user=user,
-                        password=password,
+                    self._coap = _coap.Coap(
                         host=host,
                         port=port,
                         ssl=True,
-                        ssl_params={
+                        ssl_options={
                             "server_hostname": host,
+                            "psk_identity": user,
+                            "psk_key": password,
                         },
-                        subscriptions={
-                            ".c": self._on_golioth_config,
-                            ".rpc": self._on_golioth_rpc,
-                            ".u/desired": self._on_golioth_firmware,
-                        },
-                        on_connect_task=self._on_connect,
                     )
+                    self._coap.on_connect(self._on_connect)
+                    asyncio.create_task(self._coap.connect_loop())
 
                 await cfg_watcher.wait()
 
     async def _on_connect(self, client):
         await self._send_firmware_report(client)
+        await client.observe(".c", self._on_golioth_config)
+        await client.observe(".rpc", self._on_golioth_rpc)
+        await client.observe(".u/desired", self._on_golioth_firmware)
 
-    async def _on_golioth_config(self, client, message):
-        req = json.loads(message.data)
+    async def _on_golioth_config(self, client, packet):
+        req = json.loads(packet.payload)
         self._logger.info("Config payload received: %s", req)
 
         config = {}
@@ -112,7 +110,7 @@ class Golioth:
 
         self._config.set(_config.DOMAIN_REMOTE, config)
 
-        await client.publish(
+        await client.post(
             ".c/status",
             json.dumps(
                 {
@@ -120,11 +118,13 @@ class Golioth:
                     "error_code": 0,
                 }
             ),
-            qos=0,
         )
 
     def register_rpc(self, method, handler):
         self._commands[method] = handler
+
+    async def _pong_rpc(self, *args):
+        return "pong"
 
     def _reply_rpc(self, client, req, code, detail=None):
         res = {
@@ -134,14 +134,15 @@ class Golioth:
         if detail is not None:
             res["detail"] = detail
 
-        return client.publish(
+        return client.post(
             ".rpc/status",
             json.dumps(res),
-            qos=0,
         )
 
-    async def _on_golioth_rpc(self, client, message):
-        req = json.loads(message.data)
+    async def _on_golioth_rpc(self, client, packet):
+        req = json.loads(packet.payload)
+        if not isinstance(req, dict):
+            return
 
         status = _RPC_OK
         details = None
@@ -175,10 +176,9 @@ class Golioth:
         if target_version is not None:
             req["target"] = target_version
 
-        await client.publish(
+        await client.post(
             ".u/c/" + package,
             json.dumps(req),
-            qos=0,
         )
 
     async def _update_firmware(self, client, component):
@@ -192,18 +192,17 @@ class Golioth:
 
         self._logger.info("Component %s", component)
 
-        async def _do_firmware(client, message):
-            self._logger.info("Receiving firmware package")
+        reader = client.get_streaming(component["uri"][1:])
 
-            await self._ota_manager.do_ota_update(
-                _ota.OTAUpdate(
-                    reader=message.reader,
-                    sha256_hash=component["hash"],
-                    size=component["size"],
-                )
+        self._logger.info("Receiving firmware package")
+
+        await self._ota_manager.do_ota_update(
+            _ota.OTAUpdate(
+                reader=reader,
+                sha256_hash=component["hash"],
+                size=component["size"],
             )
-
-        await client.get(component["uri"][1:], _do_firmware, stream=True)
+        )
 
         await self._send_firmware_report(
             client,
@@ -215,10 +214,10 @@ class Golioth:
 
         machine.reset()
 
-    async def _on_golioth_firmware(self, client, message):
+    async def _on_golioth_firmware(self, client, packet):
         import __version__
 
-        req = json.loads(message.data)
+        req = json.loads(packet.payload)
         self._logger.info("Firmware payload received: %s", req)
 
         if req.get("components", None) is None:
