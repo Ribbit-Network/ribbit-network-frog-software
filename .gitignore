@@ -1,2 +1,3 @@
 /firmware/
 /__version__.py
+__pycache__/
