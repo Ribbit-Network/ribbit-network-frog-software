@@ -594,6 +594,9 @@ class Coap:
         packet.set_uri_path(path)
         return await self.request(packet, observe_cb=observe_cb)
 
+    def get_streaming(self, path):
+        return BlockReader(self, path)
+
     async def post(self, path, data):
         packet = CoapPacket()
         packet.type = TYPE_CON
@@ -672,16 +675,60 @@ class Coap:
 
 
 def encode_uint_option(v):
-    bit_count = 0
+    l = 0
     vv = v
     while vv:
-        bit_count += 1
+        l += 1
         vv >>= 8
 
-    l = (bit_count + 7) // 8
     buf = bytearray(l)
     while l > 0:
         l -= 1
         buf[l] = v & 0xFF
         v >>= 8
     return buf
+
+
+def decode_uint_option(v):
+    ret = 0
+    for c in v:
+        ret = (ret << 8) | c
+    return ret
+
+
+class BlockReader:
+    def __init__(self, client, path):
+        self._client = client
+        self._path = path
+        self._token = None
+        self._block_num = 0
+
+    async def readinto(self, buf):
+        packet = CoapPacket()
+        packet.token = self._token
+        packet.type = TYPE_CON
+        packet.method = METHOD_GET
+        packet.set_uri_path(self._path)
+        block_option_payload = encode_uint_option((self._block_num << 4) | 6)
+        packet.add_option(
+            OPTION_BLOCK2,
+            block_option_payload,
+        )
+        response = await self._client.request(packet)
+
+        options = [
+            option for option in response.options if option.number == OPTION_BLOCK2
+        ]
+        if (
+            len(options) != 1
+            or (decode_uint_option(options[0].buffer) >> 4) != self._block_num
+        ):
+            raise RuntimeError("unexpected block option in server response")
+
+        if len(buf) < len(response.payload):
+            raise ValueError("buffer too small")
+
+        buf[: len(response.payload)] = response.payload
+        self._block_num += 1
+        self._token = packet.token
+        return len(response.payload)
