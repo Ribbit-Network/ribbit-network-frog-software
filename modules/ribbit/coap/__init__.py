@@ -444,6 +444,8 @@ class Coap:
 
         await asyncio.wait_for_ms(self.ping(), self._ping_timeout_ms)
 
+        self._logger.info("Connected to CoAP server")
+
         self._ping_loop_task = asyncio.create_task(self._ping_loop())
 
         for task in self._on_connect_tasks:
@@ -530,7 +532,7 @@ class Coap:
                 self._force_reconnect.set()
                 return
 
-    async def request(self, packet):
+    async def request(self, packet, observe_cb=None):
         packet.message_id = self._get_message_id()
         if packet.token is None:
             packet.token = packet.message_id
@@ -539,6 +541,7 @@ class Coap:
         ev.acked = False
         ev.disconnected = False
         ev.only_ack = packet.method == METHOD_EMPTY_MESSAGE
+        ev.observe_cb = observe_cb
         self._in_flight_requests[packet.message_id] = ev
         self._in_flight_requests[packet.token] = ev
 
@@ -572,8 +575,9 @@ class Coap:
 
         finally:
             if self._connection_epoch == epoch:
-                self._in_flight_requests.pop(packet.message_id, None)
-                self._in_flight_requests.pop(packet.token, None)
+                if observe_cb is None:
+                    self._in_flight_requests.pop(packet.message_id, None)
+                    self._in_flight_requests.pop(packet.token, None)
 
     async def get(self, path):
         packet = CoapPacket()
@@ -581,6 +585,14 @@ class Coap:
         packet.method = METHOD_GET
         packet.set_uri_path(path)
         return await self.request(packet)
+
+    async def observe(self, path, observe_cb):
+        packet = CoapPacket()
+        packet.type = TYPE_CON
+        packet.method = METHOD_GET
+        packet.add_option(OPTION_OBSERVE, b"")
+        packet.set_uri_path(path)
+        return await self.request(packet, observe_cb=observe_cb)
 
     async def post(self, path, data):
         packet = CoapPacket()
@@ -646,8 +658,17 @@ class Coap:
                 request_id = packet.message_id
             request_ev = self._in_flight_requests.get(request_id, None)
             if request_ev is not None:
+                request_ev.acked = True
                 request_ev.response = packet
-                request_ev.set()
+                if request_ev.observe_cb is not None:
+
+                    async def _observe(request_ev):
+                        await request_ev.observe_cb(self, packet)
+                        request_ev.set()
+
+                    asyncio.create_task(_observe(request_ev))
+                else:
+                    request_ev.set()
 
 
 def encode_uint_option(v):
