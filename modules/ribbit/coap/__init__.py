@@ -462,9 +462,9 @@ class Coap:
             raise
 
     async def disconnect(self):
-        self._logger.info("Disconnecting from CoAP server")
-
-        self.connected = False
+        if self.connected:
+            self._logger.info("Disconnecting from CoAP server")
+            self.connected = False
 
         if self._read_loop_task is not None:
             self._read_loop_task.cancel()
