@@ -3,8 +3,8 @@ def test_config():
 
     c = _config.ConfigRegistry(
         keys=[
-            _config.ConfigKey("foo", None, _config.String),
-            _config.ConfigKey("bar", None, _config.Integer),
+            _config.ConfigKey("foo", None, _config.String()),
+            _config.ConfigKey("bar", None, _config.Integer()),
         ],
         stored=False,
     )
@@ -29,7 +29,7 @@ def test_config_override():
 
     c = _config.ConfigRegistry(
         keys=[
-            _config.ConfigKey("bar", None, _config.Integer),
+            _config.ConfigKey("bar", None, _config.Integer()),
         ],
         stored=False,
     )

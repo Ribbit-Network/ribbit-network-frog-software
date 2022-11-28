@@ -16,11 +16,9 @@ class Invalid(Exception):
 class String:
     name = "string"
 
-    @classmethod
     def is_valid(self, value):
         return isinstance(value, str)
 
-    @classmethod
     def decode(self, value):
         return value
 
@@ -28,11 +26,9 @@ class String:
 class Integer:
     name = "integer"
 
-    @classmethod
     def is_valid(self, value):
         return isinstance(value, int)
 
-    @classmethod
     def decode(self, value):
         return int(value)
 
@@ -40,11 +36,9 @@ class Integer:
 class Float:
     name = "float"
 
-    @classmethod
     def is_valid(self, value):
         return isinstance(value, float)
 
-    @classmethod
     def decode(self, value):
         return float(value)
 
@@ -52,11 +46,9 @@ class Float:
 class Boolean:
     name = "boolean"
 
-    @classmethod
     def is_valid(self, value):
         return isinstance(value, bool)
 
-    @classmethod
     def decode(self, value):
         value = value.lower()
         if value == "true" or value == "yes" or value == "1":
