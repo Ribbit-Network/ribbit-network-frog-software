@@ -13,8 +13,8 @@ CONFIG_WIFI_PASSWORD = const("wifi.password")
 
 
 CONFIG_KEYS = [
-    _config.ConfigKey(CONFIG_WIFI_SSID, None, _config.String()),
-    _config.ConfigKey(CONFIG_WIFI_PASSWORD, None, _config.String(), protected=True),
+    _config.String(name=CONFIG_WIFI_SSID),
+    _config.String(name=CONFIG_WIFI_PASSWORD, protected=True),
 ]
 
 

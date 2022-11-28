@@ -47,7 +47,7 @@ def build_app(registry):
         for k in registry.config.keys():
             domain, value, key_info = registry.config.get(k)
             ret[k] = out = collections.OrderedDict()
-            out["type"] = key_info.type.name
+            out["type"] = key_info.type_name
             if key_info.protected:
                 out["protected"] = key_info.protected
             out["domain"] = DOMAIN_NAMES[domain]
@@ -63,7 +63,15 @@ def build_app(registry):
         if not isinstance(values, dict):
             raise HTTPException(400)
 
-        registry.config.set(DOMAIN_LOCAL, values)
-        return "{}", 201, {"Content-Type": "application/json"}
+        try:
+            registry.config.set(DOMAIN_LOCAL, values)
+            return "{}", 201, {"Content-Type": "application/json"}
+
+        except ValueError as exc:
+            return (
+                json.dumps({"error": str(exc)}),
+                400,
+                {"Content-Type": "application/json"},
+            )
 
     return app

@@ -13,55 +13,141 @@ class Invalid(Exception):
     pass
 
 
-class String:
-    name = "string"
+required = object()
 
-    def is_valid(self, value):
-        return isinstance(value, str)
 
-    def decode(self, value):
+class Key:
+    def __init__(self, name=None, default=None, protected=False):
+        self.name = name
+        self.default = default
+        self.protected = protected
+
+    def validate(self, value):
+        pass
+
+    def hydrate(self, value):
+        if value is None:
+            return self.default
         return value
 
 
-class Integer:
-    name = "integer"
+class String(Key):
+    type_name = "string"
 
-    def is_valid(self, value):
+    def validate(self, value):
+        return isinstance(value, str)
+
+
+class Integer(Key):
+    type_name = "integer"
+
+    def validate(self, value):
         return isinstance(value, int)
 
-    def decode(self, value):
-        return int(value)
 
+class Float(Key):
+    type_name = "float"
 
-class Float:
-    name = "float"
-
-    def is_valid(self, value):
+    def validate(self, value):
         return isinstance(value, float)
 
-    def decode(self, value):
-        return float(value)
 
+class Boolean(Key):
+    type_name = "boolean"
 
-class Boolean:
-    name = "boolean"
-
-    def is_valid(self, value):
+    def validate(self, value):
         return isinstance(value, bool)
 
-    def decode(self, value):
-        value = value.lower()
-        if value == "true" or value == "yes" or value == "1":
-            return True
-        return False
+
+class Object(Key):
+    type_name = "object"
+
+    def __init__(self, keys, name=None, default=None, protected=False):
+        super().__init__(name, default, protected)
+        self.keys = {}
+        self.required = set()
+        for key in keys:
+            self.keys[key.name] = key
+            if key.default is required:
+                self.required.add(key.name)
+
+    def validate(self, value):
+        if not isinstance(value, dict):
+            return False
+
+        for k, v in value.items():
+            try:
+                key = self.keys[k]
+            except KeyError:
+                return False
+
+            if not key.validate(v):
+                return False
+
+        for k in self.required:
+            if k not in value:
+                return False
+
+        return True
+
+    def hydrate(self, value):
+        value = value.copy()
+        for key in self.keys.values():
+            if key.name not in value:
+                value[key.name] = key.default
+        return value
 
 
-class ConfigKey:
-    def __init__(self, name, default, typ, protected=False):
-        self.name = name
-        self.default = default
-        self.type = typ
-        self.protected = protected
+class TypedObject(Key):
+    def __init__(self, type_key, types, name=None, default=None, protected=False):
+        super().__init__(name, default, protected)
+        self.type_key = type_key
+        self.types = {}
+        for typ in types:
+            self.types[typ.name] = typ
+
+    def validate(self, value):
+        if not isinstance(value, dict):
+            return False
+
+        value = value.copy()
+
+        try:
+            typ = value.pop(self.type_key)
+        except KeyError:
+            return False
+
+        try:
+            subtyp = self.types[typ]
+        except KeyError:
+            return False
+
+        return subtyp.validate(value)
+
+    def hydrate(self, value):
+        subtyp = self.types[value[self.type_key]]
+        return subtyp.hydrate(value)
+
+
+class Array(Key):
+    type_name = "array"
+
+    def __init__(self, item, name=None, default=None, protected=False):
+        super().__init__(name, default, protected)
+        self.item = item
+
+    def validate(self, value):
+        if not isinstance(value, list):
+            return False
+
+        for item in value:
+            if not self.item.validate(item):
+                return False
+
+        return True
+
+    def hydrate(self, value):
+        return [self.item.hydrate(item) for item in value]
 
 
 # Domain of the config keys that are not set anywhere
@@ -112,6 +198,7 @@ class ConfigRegistry:
         self._keys = collections.OrderedDict()
         for key in keys:
             self._keys[key.name] = key
+            key.default = key.hydrate(key.default)
 
         self._stored = stored
         if in_simulator:
@@ -185,7 +272,7 @@ class ConfigRegistry:
         for domain in _PRIORITY_ORDER:
             value = self._config[domain].get(key, None)
             if value is not None:
-                return (domain, value, key_info)
+                return (domain, key_info.hydrate(value), key_info)
 
         return (DOMAIN_DEFAULT, key_info.default, key_info)
 
@@ -209,7 +296,7 @@ class ConfigRegistry:
                 if not watcher_set:
                     self._watchers.pop(k)
 
-    def set(self, domain, config, unserialize=False):
+    def set(self, domain, config):
         assert domain in _STORED_DOMAINS
 
         new_keys = {}
@@ -218,13 +305,7 @@ class ConfigRegistry:
             if key_info is None:
                 continue
 
-            if unserialize:
-                if v == "null":
-                    v = None
-                else:
-                    v = key_info.type.unserialize(v)
-
-            if v is not None and not key_info.type.is_valid(v):
+            if v is not None and not key_info.validate(v):
                 raise ValueError("invalid value", k, v)
 
             new_keys[k] = v

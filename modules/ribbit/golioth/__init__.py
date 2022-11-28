@@ -44,11 +44,14 @@ _CONFIG_KEYS = [
 ]
 
 CONFIG_KEYS = [
-    _config.ConfigKey(CONFIG_GOLIOTH_ENABLED, True, _config.Boolean()),
-    _config.ConfigKey(CONFIG_GOLIOTH_HOST, "coap.golioth.io", _config.String()),
-    _config.ConfigKey(CONFIG_GOLIOTH_PORT, 5684, _config.Integer()),
-    _config.ConfigKey(CONFIG_GOLIOTH_USER, None, _config.String()),
-    _config.ConfigKey(CONFIG_GOLIOTH_PASSWORD, None, _config.String(), protected=True),
+    _config.Boolean(name=CONFIG_GOLIOTH_ENABLED, default=True),
+    _config.String(
+        name=CONFIG_GOLIOTH_HOST,
+        default="coap.golioth.io",
+    ),
+    _config.Integer(name=CONFIG_GOLIOTH_PORT, default=5684),
+    _config.String(name=CONFIG_GOLIOTH_USER, default=None),
+    _config.String(name=CONFIG_GOLIOTH_PASSWORD, default=None, protected=True),
 ]
 
 
