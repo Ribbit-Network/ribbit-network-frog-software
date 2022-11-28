@@ -63,8 +63,10 @@ def test_config_array():
             _config.Array(
                 name="bar",
                 item=_config.Object(
-                    _config.String(name="foo1"),
-                    _config.String(name="foo2"),
+                    keys=[
+                        _config.String(name="foo1"),
+                        _config.String(name="foo2"),
+                    ],
                 ),
             ),
         ],

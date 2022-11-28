@@ -147,6 +147,9 @@ class Array(Key):
         return True
 
     def hydrate(self, value):
+        if value is None:
+            return value
+
         return [self.item.hydrate(item) for item in value]
 
 
