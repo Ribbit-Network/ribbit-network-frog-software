@@ -377,8 +377,7 @@ class Coap:
         ack_timeout_ms=2_000,
         ack_random_factor=1.5,
         max_retransmit=4,
-        ping_interval_ms=30_000,
-        ping_timeout_ms=5_000,
+        ping_interval_ms=60_000,
     ):
         self._logger = logging.getLogger(__name__)
         self._callbacks = {}
@@ -388,10 +387,10 @@ class Coap:
         self._ssl = ssl
         self._ssl_opts = ssl_options or {}
 
-        # TODO: this is blocking
-        self._addr = socket.getaddrinfo(self._host, self._port)[0][-1]
+        self._addr = None
 
         self._sock = None
+        self.connected = False
         self._connection_epoch = 0
         self._next_message_id = 0
         self._read_loop_task = None
@@ -405,7 +404,6 @@ class Coap:
         self._max_retransmit = max_retransmit
 
         self._ping_interval_ms = ping_interval_ms
-        self._ping_timeout_ms = ping_timeout_ms
 
         self._on_connect_tasks = []
 
@@ -425,34 +423,48 @@ class Coap:
         self._force_reconnect.clear()
         self._connection_epoch += 1
 
+        if self._addr is None:
+            # TODO: this is blocking
+            self._addr = socket.getaddrinfo(self._host, self._port)[0][-1]
+
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setblocking(False)
-        sock.bind(socket.getaddrinfo("0.0.0.0", 0)[0][-1])
-        sock.connect(self._addr)
+        try:
+            sock.setblocking(False)
+            sock.bind(socket.getaddrinfo("0.0.0.0", 0)[0][-1])
+            sock.connect(self._addr)
 
-        if self._ssl:
-            sock = ssl.wrap_socket(
-                sock,
-                dtls=True,
-                do_handshake=False,
-                **self._ssl_opts,
-            )
+            if self._ssl:
+                sock = ssl.wrap_socket(
+                    sock,
+                    dtls=True,
+                    do_handshake=True,
+                    **self._ssl_opts,
+                )
 
-        self._sock = _DTLSocket(sock)
+            self._sock = _DTLSocket(sock)
 
-        self._read_loop_task = asyncio.create_task(self._read_loop())
+            self._read_loop_task = asyncio.create_task(self._read_loop())
 
-        await asyncio.wait_for_ms(self.ping(), self._ping_timeout_ms)
+            await self.ping()
 
-        self._logger.info("Connected to CoAP server")
+            self._logger.info("Connected to CoAP server")
 
-        self._ping_loop_task = asyncio.create_task(self._ping_loop())
+            self._ping_loop_task = asyncio.create_task(self._ping_loop())
 
-        for task in self._on_connect_tasks:
-            await task(self)
+            for task in self._on_connect_tasks:
+                await task(self)
+
+            self.connected = True
+
+        except Exception:
+            sock.close()
+            self.connected = False
+            raise
 
     async def disconnect(self):
         self._logger.info("Disconnecting from CoAP server")
+
+        self.connected = False
 
         if self._read_loop_task is not None:
             self._read_loop_task.cancel()
@@ -472,14 +484,18 @@ class Coap:
             try:
                 await self.connect()
             except Exception as exc:
-                self._logger.exc(exc, "Exception while trying to connect")
+                self._logger.error("Error trying to connect: %s", str(exc))
                 await asyncio.sleep_ms(10_000)
+                try:
+                    await self.disconnect()
+                except Exception:
+                    pass
                 continue
 
             await self._force_reconnect.wait()
 
             try:
-                self.disconnect()
+                await self.disconnect()
             except Exception:
                 pass
 
@@ -507,6 +523,7 @@ class Coap:
         try:
             await self._sock.write(buffer)
         except Exception:
+            self._logger.info("Error writing packet, force reconnect")
             self._force_reconnect.set()
             raise
 
@@ -527,8 +544,9 @@ class Coap:
         while True:
             await asyncio.sleep_ms(self._ping_interval_ms)
             try:
-                await asyncio.wait_for_ms(self.ping(), self._ping_timeout_ms)
+                await self.ping()
             except asyncio.TimeoutError:
+                self._logger.info("Timeout waiting for ping response, force reconnect")
                 self._force_reconnect.set()
                 return
 
@@ -638,6 +656,7 @@ class Coap:
                 _parse_packet(buffer, packet)
 
             except Exception:
+                self._logger.info("Error reading packet, force reconnect")
                 self._force_reconnect.set()
                 return
 
