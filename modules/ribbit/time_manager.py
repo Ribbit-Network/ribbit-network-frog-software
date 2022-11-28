@@ -73,6 +73,7 @@ class TimeManager:
                 return
 
             self._logger.info("Fetching current time via NTP")
+            t = None
             for _ in range(5):
                 try:
                     t = ntptime.time()
@@ -81,7 +82,7 @@ class TimeManager:
                     await asyncio.sleep_ms(100)
                     continue
 
-            if self.is_valid_time(t):
+            if t is not None and self.is_valid_time(t):
                 self.set_time(TIMESOURCE_NTP, t)
 
     def export(self):
