@@ -2,8 +2,6 @@ import hashlib
 import logging
 from binascii import hexlify
 
-import esp32
-
 
 class OTAUpdate:
     def __init__(self, reader, sha256_hash, size):
@@ -20,6 +18,8 @@ class OTAManager:
         esp32.Partition.mark_app_valid_cancel_rollback()
 
     async def do_ota_update(self, u):
+        import esp32
+
         self._logger.info("Starting OTA update")
         partition = esp32.Partition(esp32.Partition.RUNNING).get_next_update()
         h = hashlib.sha256()

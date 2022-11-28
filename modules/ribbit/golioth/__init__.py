@@ -53,12 +53,13 @@ CONFIG_KEYS = [
 
 
 class Golioth:
-    def __init__(self, config, commands=None):
+    def __init__(self, config, commands=None, in_simulator=False):
         self._logger = logging.getLogger(__name__)
         self._config = config
         self._commands = commands or {}
         self._coap = None
         self._ota_manager = _ota.OTAManager()
+        self._in_simulator = in_simulator
 
         self.register_rpc("ping", self._pong_rpc)
 
@@ -97,7 +98,8 @@ class Golioth:
         await self._send_firmware_report(client)
         await client.observe(".c", self._on_golioth_config)
         await client.observe(".rpc", self._on_golioth_rpc)
-        await client.observe(".u/desired", self._on_golioth_firmware)
+        if not self._in_simulator:
+            await client.observe(".u/desired", self._on_golioth_firmware)
 
     async def _on_golioth_config(self, client, packet):
         req = json.loads(packet.payload)

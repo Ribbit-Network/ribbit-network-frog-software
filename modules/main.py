@@ -48,10 +48,20 @@ def _setup_improv(registry):
 async def _main():
     global registry
 
+    import sys
+    import os
+
+    in_simulator = sys.platform == "linux"
+
+    if in_simulator:
+        sys.path.append(os.getcwd() + "/../vendor/microdot/src")
+        sys.path.append(os.getcwd() + "/..")
+
     import ribbit.config as _config
     import ribbit.golioth as _golioth
     import ribbit.http as _http
-    import ribbit.network as _network
+    if not in_simulator:
+        import ribbit.network as _network
     import ribbit.time_manager as _time
 
     class Registry:
@@ -60,25 +70,28 @@ async def _main():
     registry = Registry()
 
     config_schema = []
-    config_schema.extend(_network.CONFIG_KEYS)
+    if not in_simulator:
+        config_schema.extend(_network.CONFIG_KEYS)
     config_schema.extend(_golioth.CONFIG_KEYS)
 
-    registry.config = _config.ConfigRegistry(config_schema)
+    registry.config = _config.ConfigRegistry(config_schema, in_simulator=in_simulator)
 
-    registry.network = _network.NetworkManager(registry.config)
-
-    registry.time_manager = _time.TimeManager(registry.network)
+    if not in_simulator:
+        registry.network = _network.NetworkManager(registry.config)
+        registry.time_manager = _time.TimeManager(registry.network)
 
     _golioth.Golioth(
         registry.config,
+        in_simulator=in_simulator,
     )
 
-    _setup_improv(registry)
+    if not in_simulator:
+        _setup_improv(registry)
 
     app = _http.build_app(registry)
     asyncio.create_task(
         app.start_server(
-            port=80,
+            port=80 if not in_simulator else 8082,
         )
     )
 

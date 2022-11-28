@@ -112,7 +112,7 @@ DOMAIN_PATHS = {
 
 
 class ConfigRegistry:
-    def __init__(self, keys, stored=True):
+    def __init__(self, keys, stored=True, in_simulator=False):
         self._logger = logging.getLogger(__name__)
 
         self._watchers = {}
@@ -122,10 +122,16 @@ class ConfigRegistry:
             self._keys[key.name] = key
 
         self._stored = stored
+        if in_simulator:
+            prefix = os.getcwd() + "/data"
+            self._domain_paths = {k: prefix + v for k, v in DOMAIN_PATHS.items()}
+        else:
+            prefix = ""
+            self._domain_paths = DOMAIN_PATHS
 
         if stored:
             try:
-                os.mkdir("/config")
+                os.mkdir(prefix + "/config")
             except OSError as exc:
                 if exc.errno != errno.EEXIST:
                     raise
@@ -136,7 +142,7 @@ class ConfigRegistry:
         if not self._stored:
             return {}
 
-        filepath = DOMAIN_PATHS[domain]
+        filepath = self._domain_paths[domain]
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 self._logger.info("Loading config from %s", filepath)
@@ -168,7 +174,7 @@ class ConfigRegistry:
         if not self._stored:
             return {}
 
-        filepath = DOMAIN_PATHS[domain]
+        filepath = self._domain_paths[domain]
         try:
             with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(values, f)

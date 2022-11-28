@@ -19,6 +19,15 @@ ${UNIX_DIR}/build-standard/micropython:
 test: ${UNIX_DIR}/build-standard/micropython
 	cd modules ; ${UNIX_DIR}/build-standard/micropython -m unittest discover -p "*_test.py"
 
+${UNIX_DIR}/build-simulator/micropython:
+	rm -rf ${UNIX_DIR}/variants/simulator
+	cp -rp ${CURDIR}/board-simulator ${UNIX_DIR}/variants/simulator
+	make -C ${MP_DIR}/ports/unix -j VARIANT=simulator
+
+.PHONY: simulator
+simulator: ${UNIX_DIR}/build-simulator/micropython
+	cd modules ; ${UNIX_DIR}/build-simulator/micropython -m main
+
 .PHONY: flash
 flash: build
 	esptool.py -p /dev/ttyACM* -b 460800 --before default_reset --after no_reset \
@@ -31,4 +40,4 @@ flash: build
 
 .PHONY: clean
 clean:
-	rm -rf ${BUILD_DIR} ${UNIX_DIR}/build-standard
+	rm -rf ${BUILD_DIR} ${UNIX_DIR}/build-standard ${UNIX_DIR}/build-simulator
