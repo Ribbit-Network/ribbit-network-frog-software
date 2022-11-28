@@ -50,6 +50,8 @@ async def _main():
 
     import sys
     import os
+    import json
+    import machine
 
     in_simulator = sys.platform == "linux"
 
@@ -60,9 +62,15 @@ async def _main():
     import ribbit.config as _config
     import ribbit.golioth as _golioth
     import ribbit.http as _http
+
     if not in_simulator:
         import ribbit.network as _network
+    import ribbit.sensors.dps310 as _dps310
+    import ribbit.sensors.board as _board
+    import ribbit.sensors.gps as _gps
+    import ribbit.sensors.sdc30 as _sdc30
     import ribbit.time_manager as _time
+    import ribbit.utils.i2c as _i2c
 
     class Registry:
         pass
@@ -74,16 +82,103 @@ async def _main():
         config_schema.extend(_network.CONFIG_KEYS)
     config_schema.extend(_golioth.CONFIG_KEYS)
 
+    sensor_types = {
+        "gps": _gps.GPS,
+        "dps310": _dps310.DPS310,
+        "sdc30": _sdc30.SDC30,
+        "board": _board.Board,
+        "memory": _board.Memory,
+    }
+
+    default_sensors = [
+        {
+            "type": "board",
+        },
+        {
+            "type": "memory",
+        },
+    ]
+
+    if not in_simulator:
+        default_sensors.extend(
+            [
+                {
+                    "type": "gps",
+                    "address": _gps.DEFAULT_ADDR,
+                },
+                {
+                    "type": "dps310",
+                    "address": _dps310.DEFAULT_ADDR,
+                },
+                {
+                    "type": "sdc30",
+                    "address": _sdc30.DEFAULT_ADDR,
+                },
+            ]
+        )
+
+    config_schema.append(
+        _config.Array(
+            name="sensors",
+            item=_config.TypedObject(
+                type_key="type",
+                types={cls.config for cls in sensor_types.values()},
+            ),
+            default=default_sensors,
+        ),
+    )
+
     registry.config = _config.ConfigRegistry(config_schema, in_simulator=in_simulator)
 
     if not in_simulator:
         registry.network = _network.NetworkManager(registry.config)
         registry.time_manager = _time.TimeManager(registry.network)
 
-    _golioth.Golioth(
+    registry.golioth = _golioth.Golioth(
         registry.config,
         in_simulator=in_simulator,
     )
+
+    registry.sensors = {}
+
+    class Output:
+        async def write(self, data):
+            coap = registry.golioth._coap
+            if coap is None or not coap.connected:
+                return
+
+            try:
+                typ = data.pop("@type")
+                await coap.post(
+                    ".s/" + typ,
+                    json.dumps(data),
+                )
+            except Exception:
+                pass
+
+    registry.sensors_output = Output()
+
+    if True:
+        if not in_simulator:
+            registry.i2c_bus = _i2c.LockableI2CBus(
+                0, scl=machine.Pin(4), sda=machine.Pin(3), freq=50000
+            )
+
+            # Turn on the I2C power:
+            machine.Pin(7, mode=machine.Pin.OUT, value=1, hold=True)
+
+        _, sensors, _ = registry.config.get("sensors")
+
+        for sensor in sensors:
+            sensor = sensor.copy()
+            sensor_type = sensor.pop("type")
+            registry.sensors[sensor_type] = sensor_types[sensor_type](
+                registry,
+                **sensor,
+            )
+
+        for sensor in registry.sensors.values():
+            asyncio.create_task(sensor.loop())
 
     if not in_simulator:
         _setup_improv(registry)

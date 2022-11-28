@@ -1,10 +1,11 @@
-import logging
 import time
 import uasyncio as asyncio
 from micropython import const
 
+import ribbit.config as _config
 from ribbit.utils.time import isotime
 
+from . import base as _base
 
 DEFAULT_ADDR = const(0x77)
 
@@ -26,21 +27,29 @@ def _two_complement(val, bits):
     return val
 
 
-class DPS310:
+class DPS310(_base.PollingSensor):
+    config = _config.Object(
+        name="dps310",
+        keys=[
+            _config.Integer(name="address"),
+            _config.Integer(name="interval", default=60),
+            _config.Integer(name="pressure_oversampling", default=6),
+            _config.Integer(name="temperature_oversampling", default=6),
+        ],
+    )
+
     def __init__(
         self,
-        i2c_bus,
-        i2c_addr,
-        logger=None,
+        registry,
+        address,
+        interval=60,
         pressure_oversampling=6,
         temperature_oversampling=6,
     ):
-        if logger is None:
-            logger = logging.getLogger(__name__)
-        self._logger = logger
+        super().__init__(registry, interval)
 
-        self._i2c_bus = i2c_bus
-        self._i2c_addr = i2c_addr
+        self._i2c_bus = registry.i2c_bus
+        self._i2c_addr = address
 
         self._buf = memoryview(bytearray(16))
 
@@ -174,7 +183,8 @@ class DPS310:
 
     def export(self):
         return {
-            "last_update": isotime(self.last_update),
+            "t": isotime(self.last_update),
+            "@type": "ribbitnetwork/sensor.dps310",
             "temperature": self.temperature,
             "pressure": self.pressure,
         }

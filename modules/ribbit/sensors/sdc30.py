@@ -1,11 +1,13 @@
-import logging
 import time
 import uasyncio as asyncio
 from ustruct import unpack
 
 from micropython import const
 
+import ribbit.config as _config
 from ribbit.utils.time import isotime
+
+from . import base as _base
 
 DEFAULT_ADDR = const(0x61)
 
@@ -62,22 +64,28 @@ def _encode16(buf, data):
     buf[2] = _crc8(buf[0], buf[1])
 
 
-class SDC30:
-    def __init__(self, i2c_bus, i2c_addr, logger=None, mesurement_interval=15):
-        if logger is None:
-            logger = logging.getLogger(__name__)
-        self._logger = logger
+class SDC30(_base.PollingSensor):
+    config = _config.Object(
+        name="sdc30",
+        keys=[
+            _config.Integer(name="address"),
+            _config.Integer(name="interval", default=60),
+        ],
+    )
 
-        self._i2c_bus = i2c_bus
-        self._i2c_addr = i2c_addr
+    def __init__(self, registry, address, interval=60):
+        super().__init__(registry, interval)
+
+        self._i2c_bus = registry.i2c_bus
+        self._i2c_addr = address
 
         self._req_buf = memoryview(bytearray(5))
         self._resp_buf = memoryview(bytearray(18))
 
-        if not 2 <= mesurement_interval <= 1800:
+        if not 2 <= interval <= 1800:
             raise ValueError("measurement interval out of range")
-        self._mesurement_interval = int(mesurement_interval)
-        self._mesurement_interval_ms = int(mesurement_interval) * 1000
+        self._mesurement_interval = int(interval)
+        self._mesurement_interval_ms = int(interval) * 1000
 
         self._initialized = False
 
@@ -200,7 +208,8 @@ class SDC30:
 
     def export(self):
         return {
-            "last_update": isotime(self.last_update),
+            "t": isotime(self.last_update),
+            "@type": "ribbitnetwork/sensor.sdc30",
             "temperature": self.temperature,
             "temperature_offset": self._temperature_offset / 100
             if self._temperature_offset is not None

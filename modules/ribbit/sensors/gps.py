@@ -1,11 +1,12 @@
-import logging
 import time
 
-import machine
 import uasyncio as asyncio
 from micropython import const
+import ribbit.config as _config
 import ribbit.time_manager as _time
 from ribbit.utils.time import isotime
+
+from . import base as _base
 
 _MAX_NMEA_PACKET_LEN = const(80)
 
@@ -28,16 +29,21 @@ def _append_checksum(packet):
     )
 
 
-class GPS:
-    def __init__(self, i2c_bus, i2c_addr, interval=10, logger=None, time_manager=None):
-        self._i2c_bus = i2c_bus
-        self._i2c_addr = i2c_addr
-        self._report_interval = interval
-        self._time_manager = time_manager
+class GPS(_base.BaseSensor):
+    config = _config.Object(
+        name="gps",
+        keys=[
+            _config.Integer(name="address"),
+            _config.Integer(name="interval", default=60),
+        ],
+    )
 
-        if logger is None:
-            logger = logging.getLogger(__name__)
-        self._logger = logger
+    def __init__(self, registry, address, interval=60):
+        super().__init__(registry)
+        self._i2c_bus = registry.i2c_bus
+        self._i2c_addr = address
+        self._report_interval = interval
+        self._time_manager = registry.time_manager
 
         self.last_update = None
         self.last_fix = None
@@ -51,7 +57,6 @@ class GPS:
         self._last_time_update = None
 
         self._stop_event = asyncio.Event()
-        self._read_loop_task = asyncio.create_task(self._read_loop())
 
     async def stop(self):
         if self._read_loop_task is not None:
@@ -59,7 +64,7 @@ class GPS:
             await self._read_loop_task
             self._read_loop_task = None
 
-    async def _read_loop(self):
+    async def loop(self):
         while True:
             try:
                 await self._read_loop_inner()
@@ -92,6 +97,8 @@ class GPS:
         state = _STATE_PACKET_START
         poll_interval = (self._report_interval * 1000) // 2
         poll_interval += 1000
+
+        previous_update = None
 
         while True:
             async with self._i2c_bus.lock:
@@ -144,6 +151,10 @@ class GPS:
                         self._parse_packet(pkt_mv[0:pkt_len])
 
                     state = _STATE_PACKET_START
+
+            if not seen_data and previous_update != self.last_update:
+                previous_update = self.last_update
+                await self._output.write(self.export())
 
             try:
                 await asyncio.wait_for_ms(
@@ -229,9 +240,13 @@ class GPS:
                 t = time.mktime((year, month, day, hour, minute, second, 0, 0))
                 self._time_manager.set_time(_time.TIMESOURCE_GPS, t)
 
+    async def read_once(self):
+        pass
+
     def export(self):
         return {
-            "last_update": isotime(self.last_update),
+            "t": isotime(self.last_update),
+            "@type": "ribbitnetwork/sensor.gps",
             "last_fix": isotime(self.last_fix),
             "latitude": self.latitude,
             "longitude": self.longitude,
