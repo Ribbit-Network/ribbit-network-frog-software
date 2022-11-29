@@ -1,5 +1,6 @@
 import datetime
 import subprocess
+import os
 
 include("$(MPY_DIR)/extmod/uasyncio")
 freeze("$(PORT_DIR)/modules")
@@ -17,12 +18,18 @@ commit_id = subprocess.check_output(
     ["git", "rev-parse", "HEAD"],
     encoding="utf-8",
 )
-now = datetime.datetime.utcnow()
+
+if "SOURCE_DATE_EPOCH" in os.environ:
+    now = datetime.datetime.utcfromtimestamp(float(os.environ["SOURCE_DATE_EPOCH"]))
+else:
+    now = datetime.datetime.utcnow()
 
 with open("__version__.py", "w", encoding="utf-8") as f:
     f.write("version = %r\n" % version.strip())
     f.write("commit_id = %r\n" % commit_id.strip())
     f.write("build_date = %r\n" % now.isoformat())
     f.write("build_year = %d\n" % now.year)
+
+os.utime("__version__.py", (now.timestamp(), now.timestamp()))
 
 module("__version__.py")
