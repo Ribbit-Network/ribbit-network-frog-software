@@ -551,14 +551,15 @@ class Coap:
                 return
 
     async def request(self, packet, observe_cb=None):
+        is_ping = packet.method == METHOD_EMPTY_MESSAGE
         packet.message_id = self._get_message_id()
-        if packet.token is None:
+        if packet.token is None and not is_ping:
             packet.token = packet.message_id
 
         ev = asyncio.Event()
         ev.acked = False
         ev.disconnected = False
-        ev.only_ack = packet.method == METHOD_EMPTY_MESSAGE
+        ev.only_ack = is_ping
         ev.observe_cb = observe_cb
         self._in_flight_requests[packet.message_id] = ev
         self._in_flight_requests[packet.token] = ev
