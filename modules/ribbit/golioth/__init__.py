@@ -99,10 +99,10 @@ class Golioth:
 
     async def _on_connect(self, client):
         await self._send_firmware_report(client)
-        await client.observe(".c", self._on_golioth_config)
-        await client.observe(".rpc", self._on_golioth_rpc)
+        await client.observe(".c", self._on_golioth_config, accept=_coap.CONTENT_FORMAT_APPLICATION_JSON)
+        await client.observe(".rpc", self._on_golioth_rpc, accept=_coap.CONTENT_FORMAT_APPLICATION_JSON)
         if not self._in_simulator:
-            await client.observe(".u/desired", self._on_golioth_firmware)
+            await client.observe(".u/desired", self._on_golioth_firmware, accept=_coap.CONTENT_FORMAT_APPLICATION_JSON)
 
     async def _on_golioth_config(self, client, packet):
         req = json.loads(packet.payload)
@@ -123,6 +123,7 @@ class Golioth:
                     "error_code": 0,
                 }
             ),
+            format=_coap.CONTENT_FORMAT_APPLICATION_JSON,
         )
 
     def register_rpc(self, method, handler):
@@ -142,6 +143,7 @@ class Golioth:
         return client.post(
             ".rpc/status",
             json.dumps(res),
+            format=_coap.CONTENT_FORMAT_APPLICATION_JSON,
         )
 
     async def _on_golioth_rpc(self, client, packet):
@@ -184,6 +186,7 @@ class Golioth:
         await client.post(
             ".u/c/" + package,
             json.dumps(req),
+            format=_coap.CONTENT_FORMAT_APPLICATION_JSON,
         )
 
     async def _update_firmware(self, client, component):

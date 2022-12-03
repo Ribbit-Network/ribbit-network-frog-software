@@ -61,6 +61,7 @@ async def _main():
 
     import ribbit.config as _config
     import ribbit.golioth as _golioth
+    import ribbit.coap as _coap
     import ribbit.http as _http
 
     if not in_simulator:
@@ -152,33 +153,33 @@ async def _main():
                 await coap.post(
                     ".s/" + typ,
                     json.dumps(data),
+                    format=_coap.CONTENT_FORMAT_APPLICATION_JSON,
                 )
             except Exception:
                 pass
 
     registry.sensors_output = Output()
 
-    if True:
-        if not in_simulator:
-            registry.i2c_bus = _i2c.LockableI2CBus(
-                0, scl=machine.Pin(4), sda=machine.Pin(3), freq=50000
-            )
+    if not in_simulator:
+        registry.i2c_bus = _i2c.LockableI2CBus(
+            0, scl=machine.Pin(4), sda=machine.Pin(3), freq=50000
+        )
 
-            # Turn on the I2C power:
-            machine.Pin(7, mode=machine.Pin.OUT, value=1, hold=True)
+        # Turn on the I2C power:
+        machine.Pin(7, mode=machine.Pin.OUT, value=1, hold=True)
 
-        _, sensors, _ = registry.config.get("sensors")
+    _, sensors, _ = registry.config.get("sensors")
 
-        for sensor in sensors:
-            sensor = sensor.copy()
-            sensor_type = sensor.pop("type")
-            registry.sensors[sensor_type] = sensor_types[sensor_type](
-                registry,
-                **sensor,
-            )
+    for sensor in sensors:
+        sensor = sensor.copy()
+        sensor_type = sensor.pop("type")
+        registry.sensors[sensor_type] = sensor_types[sensor_type](
+            registry,
+            **sensor,
+        )
 
-        for sensor in registry.sensors.values():
-            asyncio.create_task(sensor.loop())
+    for sensor in registry.sensors.values():
+        asyncio.create_task(sensor.loop())
 
     if not in_simulator:
         _setup_improv(registry)
