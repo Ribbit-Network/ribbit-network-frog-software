@@ -28,6 +28,16 @@ jobs:
           docker run -t -u "$UID:$GID" -e "HOME=/app" -v "${GITHUB_WORKSPACE}:/app" -w "/app" espressif/idf:v4.4.1 make
       shell: bash
 
+    - name: Upload to Golioth
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        python ./tools/upload-to-golioth.py
+      env:
+        GOLIOTH_PROJECT: ribbit
+        GOLIOTH_BLUEPRINT: 638a8a406a504ec89e7b18ee
+        GOLIOTH_API_KEY: ${{ secrets.GOLIOTH_API_KEY }}
+      shell: bash
+
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
 
