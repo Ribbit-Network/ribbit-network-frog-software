@@ -281,8 +281,8 @@ def _parse_packet(buffer, packet):
     token_len = buffer[0] & 0x0F
     if token_len == 0:
         packet.token = None
-    elif token_len == 2:
-        packet.token = (buffer[4] << 8) | buffer[5]
+    elif token_len == 4:
+        packet.token = (buffer[4] << 24) | (buffer[5] << 16) | (buffer[6] << 8) | buffer[7]
     else:
         raise COAPInvalidPacketError()
 
@@ -308,7 +308,7 @@ def _write_packet_header_info(buffer, packet):
     # max: 8 bytes of tokens, if token length is greater, it is ignored
     token_len = 0
     if packet.token is not None:
-        token_len = 2
+        token_len = 4
 
     buffer[0] |= token_len & 0x0F
     buffer.append(packet.method)
@@ -316,7 +316,9 @@ def _write_packet_header_info(buffer, packet):
     buffer.append(packet.message_id & 0xFF)
 
     if packet.token is not None:
-        buffer.append(packet.token >> 8)
+        buffer.append((packet.token >> 24) & 0xff)
+        buffer.append((packet.token >> 16) & 0xff)
+        buffer.append((packet.token >> 8) & 0xff)
         buffer.append(packet.token & 0xFF)
 
 
@@ -396,7 +398,7 @@ class Coap:
         self._read_loop_task = None
         self._ping_loop_task = None
         self._in_flight_requests = {}
-        self._force_reconnect = asyncio.Event()
+        self._force_reconnect_event = asyncio.Event()
 
         # Protocol parameters:
         self._ack_timeout_min_ms = ack_timeout_ms
@@ -406,6 +408,8 @@ class Coap:
         self._ping_interval_ms = ping_interval_ms
 
         self._on_connect_tasks = []
+
+        self.lock = asyncio.Lock()
 
     def _get_message_id(self):
         message_id = self._next_message_id
@@ -420,8 +424,11 @@ class Coap:
 
     async def connect(self):
         self._logger.info("Connecting to CoAP server")
-        self._force_reconnect.clear()
-        self._connection_epoch += 1
+        self._force_reconnect_event.clear()
+
+        rnd = os.urandom(2)
+        self._connection_epoch = (rnd[0] << 8) | rnd[1]
+        self._next_message_id = 0
 
         if self._addr is None:
             # TODO: this is blocking
@@ -461,6 +468,11 @@ class Coap:
             self.connected = False
             raise
 
+    def _force_reconnect(self, reason):
+        if not self._force_reconnect_event.is_set():
+            self._force_reconnect_event.set()
+            self._logger.warning("Force reconnection, reason: %s", reason)
+
     async def disconnect(self):
         if self.connected:
             self._logger.info("Disconnecting from CoAP server")
@@ -492,7 +504,7 @@ class Coap:
                     pass
                 continue
 
-            await self._force_reconnect.wait()
+            await self._force_reconnect_event.wait()
 
             try:
                 await self.disconnect()
@@ -523,8 +535,7 @@ class Coap:
         try:
             await self._sock.write(buffer)
         except Exception:
-            self._logger.info("Error writing packet, force reconnect")
-            self._force_reconnect.set()
+            self._force_reconnect("error writing packet")
             raise
 
     async def _send_ack(self, message_id):
@@ -545,90 +556,96 @@ class Coap:
             await asyncio.sleep_ms(self._ping_interval_ms)
             try:
                 await self.ping()
-            except asyncio.TimeoutError:
-                self._logger.info("Timeout waiting for ping response, force reconnect")
-                self._force_reconnect.set()
+            except Exception:
+                self._force_reconnect("error sending ping request")
                 return
 
     async def request(self, packet, observe_cb=None):
-        is_ping = packet.method == METHOD_EMPTY_MESSAGE
-        packet.message_id = self._get_message_id()
-        if packet.token is None and not is_ping:
-            packet.token = packet.message_id
+        async with self.lock:
+            is_ping = packet.method == METHOD_EMPTY_MESSAGE
+            packet.message_id = self._get_message_id()
+            if packet.token is None and not is_ping:
+                packet.token = (self._connection_epoch << 16) | packet.message_id
 
-        ev = asyncio.Event()
-        ev.acked = False
-        ev.disconnected = False
-        ev.only_ack = is_ping
-        ev.observe_cb = observe_cb
-        self._in_flight_requests[packet.message_id] = ev
-        self._in_flight_requests[packet.token] = ev
+            ev = asyncio.Event()
+            ev.acked = False
+            ev.disconnected = False
+            ev.only_ack = is_ping
+            ev.observe_cb = observe_cb
+            self._in_flight_requests[packet.message_id] = ev
+            self._in_flight_requests[packet.token] = ev
 
-        retransmit_delay_ms = random.randint(
-            self._ack_timeout_min_ms, self._ack_timeout_max_ms
-        )
-        retransmissions = 0
+            retransmit_delay_ms = random.randint(
+                self._ack_timeout_min_ms, self._ack_timeout_max_ms
+            )
+            retransmissions = 0
 
-        epoch = self._connection_epoch
-        try:
-            while not ev.acked:
-                await self.send_packet(packet)
+            epoch = self._connection_epoch
+            try:
+                while not ev.acked:
+                    await self.send_packet(packet)
 
-                try:
-                    await asyncio.wait_for_ms(ev.wait(), retransmit_delay_ms)
-                    break
-                except asyncio.TimeoutError:
-                    if self._connection_epoch != epoch:
-                        raise COAPDisconnectedError()
+                    try:
+                        await asyncio.wait_for_ms(ev.wait(), retransmit_delay_ms)
+                        break
+                    except asyncio.TimeoutError:
+                        if self._connection_epoch != epoch:
+                            raise COAPDisconnectedError()
 
-                    if retransmissions == self._max_retransmit:
-                        raise COAPRequestTimeoutError()
-                    retransmissions += 1
-                    retransmit_delay_ms *= 2
+                        if retransmissions == self._max_retransmit:
+                            self._force_reconnect("reached max retransmissions")
+                            raise COAPRequestTimeoutError()
+                        retransmissions += 1
+                        retransmit_delay_ms *= 2
 
-            if not ev.is_set():
-                await ev.wait()
-            if ev.disconnected:
-                raise COAPDisconnectedError()
-            return ev.response
+                if not ev.is_set():
+                    await ev.wait()
+                if ev.disconnected:
+                    raise COAPDisconnectedError()
+                return ev.response
 
-        finally:
-            if self._connection_epoch == epoch:
-                if observe_cb is None:
-                    self._in_flight_requests.pop(packet.message_id, None)
-                    self._in_flight_requests.pop(packet.token, None)
+            finally:
+                if self._connection_epoch == epoch:
+                    if observe_cb is None:
+                        self._in_flight_requests.pop(packet.message_id, None)
+                        self._in_flight_requests.pop(packet.token, None)
 
-    async def get(self, path):
+    async def get(self, path, accept=CONTENT_FORMAT_TEXT_PLAIN):
         packet = CoapPacket()
         packet.type = TYPE_CON
         packet.method = METHOD_GET
         packet.set_uri_path(path)
+        packet.add_option(OPTION_ACCEPT, encode_uint_option(accept))
         return await self.request(packet)
 
-    async def observe(self, path, observe_cb):
+    async def observe(self, path, observe_cb, accept=CONTENT_FORMAT_TEXT_PLAIN):
         packet = CoapPacket()
         packet.type = TYPE_CON
         packet.method = METHOD_GET
         packet.add_option(OPTION_OBSERVE, b"")
         packet.set_uri_path(path)
+        packet.add_option(OPTION_ACCEPT, encode_uint_option(accept))
         return await self.request(packet, observe_cb=observe_cb)
 
     def get_streaming(self, path):
         return BlockReader(self, path)
 
-    async def post(self, path, data):
+    async def post(self, path, data, format=CONTENT_FORMAT_TEXT_PLAIN):
         packet = CoapPacket()
         packet.type = TYPE_CON
         packet.method = METHOD_POST
         packet.set_uri_path(path)
+        packet.add_option(OPTION_CONTENT_FORMAT, encode_uint_option(format))
         packet.payload = data
         return await self.request(packet)
 
-    async def put(self, path):
+    async def put(self, path, format=CONTENT_FORMAT_TEXT_PLAIN):
         packet = CoapPacket()
         packet.type = TYPE_CON
         packet.method = METHOD_PUT
         packet.set_uri_path(path)
+        if format:
+            packet.add_option(OPTION_CONTENT_FORMAT, encode_uint_option(format))
         return await self.request(packet)
 
     async def delete(self, path):
@@ -657,8 +674,7 @@ class Coap:
                 _parse_packet(buffer, packet)
 
             except Exception:
-                self._logger.info("Error reading packet, force reconnect")
-                self._force_reconnect.set()
+                self._force_reconnect("error reading packet")
                 return
 
             # self._logger.info("<<<<<< %s", packet)
@@ -684,14 +700,8 @@ class Coap:
                 request_ev.acked = True
                 request_ev.response = packet
                 if request_ev.observe_cb is not None:
-
-                    async def _observe(request_ev):
-                        await request_ev.observe_cb(self, packet)
-                        request_ev.set()
-
-                    asyncio.create_task(_observe(request_ev))
-                else:
-                    request_ev.set()
+                    asyncio.create_task(request_ev.observe_cb(self, packet))
+                request_ev.set()
 
 
 def encode_uint_option(v):
@@ -700,6 +710,9 @@ def encode_uint_option(v):
     while vv:
         l += 1
         vv >>= 8
+
+    if l == 0:
+        return b""
 
     buf = bytearray(l)
     while l > 0:
