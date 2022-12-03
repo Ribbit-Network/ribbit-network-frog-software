@@ -11,7 +11,11 @@ module("microdot.py", "vendor/microdot/src")
 module("microdot_asyncio.py", "vendor/microdot/src")
 
 version = subprocess.check_output(
-    ["git", "describe"],
+    [
+        "git",
+        "describe",
+        "--tags",  # Necessary because `actions/checkout@v3` doesn't keep the annotated tags for some reason https://github.com/actions/checkout/issues/290
+    ],
     encoding="utf-8",
 )
 commit_id = subprocess.check_output(
