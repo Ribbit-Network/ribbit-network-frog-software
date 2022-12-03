@@ -58,12 +58,6 @@ class GPS(_base.BaseSensor):
 
         self._stop_event = asyncio.Event()
 
-    async def stop(self):
-        if self._read_loop_task is not None:
-            self._stop_event.set()
-            await self._read_loop_task
-            self._read_loop_task = None
-
     async def loop(self):
         while True:
             try:
