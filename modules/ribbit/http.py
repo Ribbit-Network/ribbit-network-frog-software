@@ -3,6 +3,7 @@ import uasyncio as asyncio
 import collections
 
 from microdot_asyncio import Microdot, Request, Response, HTTPException
+from microdot_asyncio_websocket import with_websocket
 
 from ._static import assets
 from .config import DOMAIN_LOCAL, DOMAIN_NAMES
@@ -14,6 +15,10 @@ Request.max_content_length = 1 << 30
 def build_app(registry):
     app = Microdot()
     app.registry = registry
+
+    @app.route('/')
+    def index(request):
+        return send_file('index.html')
 
     @app.errorhandler(404)
     async def static(request):
@@ -73,5 +78,12 @@ def build_app(registry):
                 400,
                 {"Content-Type": "application/json"},
             )
+
+    @app.route('/echo')
+    @with_websocket
+    async def echo(request, ws):
+        while True:
+            data = await ws.receive()
+            await ws.send(data)
 
     return app
