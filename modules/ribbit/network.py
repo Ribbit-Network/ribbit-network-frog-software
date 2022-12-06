@@ -74,7 +74,6 @@ class NetworkManager:
         poll_interval_connecting_ms=500,
     ):
         self._config = config
-        self._hostname = hostname
         self._iface = network.WLAN(network.STA_IF)
         self._iface.active(False)
         self._logger = logging.getLogger(__name__)
@@ -180,7 +179,6 @@ class NetworkManager:
                     self.state.set(_state_connecting)
                     iface.active(False)
                     iface.active(True)
-                    iface.config(hostname=self._hostname)
                     iface.connect(ssid, password)
                     connection_started = True
 
