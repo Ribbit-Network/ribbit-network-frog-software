@@ -16,10 +16,6 @@ def build_app(registry):
     app = Microdot()
     app.registry = registry
 
-    @app.route('/')
-    def index(request):
-        return send_file('index.html')
-
     @app.errorhandler(404)
     async def static(request):
         filename = request.path
