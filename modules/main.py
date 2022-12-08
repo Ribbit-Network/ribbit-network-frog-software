@@ -63,6 +63,7 @@ async def _main():
     import ribbit.golioth as _golioth
     import ribbit.coap as _coap
     import ribbit.http as _http
+    import ribbit.heartbeat as _heartbeat
 
     if not in_simulator:
         import ribbit.network as _network
@@ -77,6 +78,8 @@ async def _main():
         pass
 
     registry = Registry()
+
+    _heartbeat.Heartbeat(in_simulator)
 
     config_schema = []
     if not in_simulator:
