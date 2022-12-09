@@ -1,3 +1,6 @@
 /firmware/
 /__version__.py
 __pycache__/
+
+# OSX Files
+.DS_STORE

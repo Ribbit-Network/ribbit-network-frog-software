@@ -1,0 +1,21 @@
+{
+    "project_name":       "bootloader",
+    "project_path":       "/Users/keenan/esp/esp-idf/components/bootloader/subproject",
+    "build_dir":          "/Users/keenan/Documents/GitHub/ribbit-network-frog-software/esp-idf/build/bootloader",
+    "config_file":        "/Users/keenan/Documents/GitHub/ribbit-network-frog-software/esp-idf/sdkconfig",
+    "config_defaults":    "",
+    "app_elf":            "bootloader.elf",
+    "app_bin":            "bootloader.bin",
+    "git_revision":       "v4.4.2",
+    "target":             "esp32s3",
+    "rev":                "",
+    "phy_data_partition": "",
+    "monitor_baud" :      "115200",
+    "monitor_toolprefix": "xtensa-esp32s3-elf-",
+    "config_environment" : {
+        "COMPONENT_KCONFIGS" : "/Users/keenan/esp/esp-idf/components/efuse/Kconfig;/Users/keenan/esp/esp-idf/components/esp32s3/Kconfig;/Users/keenan/esp/esp-idf/components/esp_common/Kconfig;/Users/keenan/esp/esp-idf/components/esp_hw_support/Kconfig;/Users/keenan/esp/esp-idf/components/esp_system/Kconfig;/Users/keenan/esp/esp-idf/components/freertos/Kconfig;/Users/keenan/esp/esp-idf/components/hal/Kconfig;/Users/keenan/esp/esp-idf/components/log/Kconfig;/Users/keenan/esp/esp-idf/components/newlib/Kconfig;/Users/keenan/esp/esp-idf/components/spi_flash/Kconfig",
+        "COMPONENT_KCONFIGS_PROJBUILD" : "/Users/keenan/esp/esp-idf/components/bootloader/Kconfig.projbuild;/Users/keenan/esp/esp-idf/components/esp_rom/Kconfig.projbuild;/Users/keenan/esp/esp-idf/components/esptool_py/Kconfig.projbuild;/Users/keenan/esp/esp-idf/components/partition_table/Kconfig.projbuild"
+    },
+    "build_components" : [ "bootloader", "bootloader_support", "efuse", "esp32s3", "esp_common", "esp_hw_support", "esp_rom", "esp_system", "esptool_py", "freertos", "hal", "log", "main", "micro-ecc", "newlib", "partition_table", "soc", "spi_flash", "xtensa", "" ],
+    "build_component_paths" : [ "/Users/keenan/esp/esp-idf/components/bootloader", "/Users/keenan/esp/esp-idf/components/bootloader_support", "/Users/keenan/esp/esp-idf/components/efuse", "/Users/keenan/esp/esp-idf/components/esp32s3", "/Users/keenan/esp/esp-idf/components/esp_common", "/Users/keenan/esp/esp-idf/components/esp_hw_support", "/Users/keenan/esp/esp-idf/components/esp_rom", "/Users/keenan/esp/esp-idf/components/esp_system", "/Users/keenan/esp/esp-idf/components/esptool_py", "/Users/keenan/esp/esp-idf/components/freertos", "/Users/keenan/esp/esp-idf/components/hal", "/Users/keenan/esp/esp-idf/components/log", "/Users/keenan/esp/esp-idf/components/bootloader/subproject/main", "/Users/keenan/esp/esp-idf/components/bootloader/subproject/components/micro-ecc", "/Users/keenan/esp/esp-idf/components/newlib", "/Users/keenan/esp/esp-idf/components/partition_table", "/Users/keenan/esp/esp-idf/components/soc", "/Users/keenan/esp/esp-idf/components/spi_flash", "/Users/keenan/esp/esp-idf/components/xtensa", "" ]
+}

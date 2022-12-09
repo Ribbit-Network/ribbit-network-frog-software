@@ -5,3 +5,9 @@
 [submodule "vendor/microdot"]
 	path = vendor/microdot
 	url = https://github.com/miguelgrinberg/microdot.git
+[submodule "esp-idf/third_party/golioth-firmware-sdk"]
+	path = esp-idf/third_party/golioth-firmware-sdk
+	url = https://github.com/golioth/golioth-firmware-sdk.git
+[submodule "esp-idf/third_party/esp-idf-lib"]
+	path = esp-idf/third_party/esp-idf-lib
+	url = https://github.com/UncleRus/esp-idf-lib.git
