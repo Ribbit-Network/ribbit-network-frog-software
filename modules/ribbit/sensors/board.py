@@ -3,7 +3,6 @@ import sys
 import time
 import gc
 
-import machine
 import ribbit.config as _config
 from ribbit.utils.time import isotime
 from . import base as _base
@@ -17,23 +16,23 @@ class Board(_base.PollingSensor):
         ],
     )
 
-    def __init__(self, registry, interval=24 * 3600):
-        super().__init__(registry, interval)
+    def __init__(self, registry, id, interval=24 * 3600):
+        super().__init__(registry, id, interval)
 
     def export(self):
-        info = {
+        import __version__
+
+        return {
             "t": isotime(time.time()),
-            "@type": "ribbitnetwork/sensor.board",
+            "@type": "ribbitnetwork.sensor.Device",
+            "sensor_model": "frog",
+            "hardware": {
+                "board": sys.implementation._machine,
+            },
+            "firmware": {
+                "version": __version__.version,
+            },
         }
-
-        try:
-            info["board_id"] = binascii.hexlify(machine.unique_id())
-        except Exception:
-            pass
-
-        info["machine"] = sys.implementation._machine
-        info["micropython"] = ".".join(str(part) for part in sys.implementation.version)
-        return info
 
 
 class Memory(_base.PollingSensor):
@@ -44,14 +43,16 @@ class Memory(_base.PollingSensor):
         ],
     )
 
-    def __init__(self, registry, interval=60):
-        super().__init__(registry, interval)
+    def __init__(self, registry, id, interval=60):
+        super().__init__(registry, id, interval)
 
     def export(self):
         gc.collect()
+        alloc, free = gc.mem_alloc(), gc.mem_free()
         return {
             "t": isotime(time.time()),
-            "@type": "ribbitnetwork/sensor.memory",
-            "allocated": gc.mem_alloc(),
-            "free": gc.mem_free(),
+            "@type": "ribbitnetwork.sensor.DeviceMemory",
+            "sensor_model": "frog",
+            "allocated": alloc,
+            "total": alloc + free,
         }
