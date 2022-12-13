@@ -64,9 +64,9 @@ def _encode16(buf, data):
     buf[2] = _crc8(buf[0], buf[1])
 
 
-class SDC30(_base.PollingSensor):
+class SCD30(_base.PollingSensor):
     config = _config.Object(
-        name="sdc30",
+        name="scd30",
         keys=[
             _config.Integer(name="address"),
             _config.Integer(name="interval", default=60),
@@ -209,7 +209,7 @@ class SDC30(_base.PollingSensor):
     def export(self):
         return {
             "t": isotime(self.last_update),
-            "@type": "ribbitnetwork/sensor.sdc30",
+            "@type": "ribbitnetwork/sensor.scd30",
             "temperature": self.temperature,
             "temperature_offset": self._temperature_offset / 100
             if self._temperature_offset is not None
