@@ -33,13 +33,14 @@ class GPS(_base.BaseSensor):
     config = _config.Object(
         name="gps",
         keys=[
+            _config.String(name="id"),
             _config.Integer(name="address"),
             _config.Integer(name="interval", default=60),
         ],
     )
 
-    def __init__(self, registry, address, interval=60):
-        super().__init__(registry)
+    def __init__(self, registry, id, address, interval=60):
+        super().__init__(registry, id)
         self._i2c_bus = registry.i2c_bus
         self._i2c_addr = address
         self._report_interval = interval
@@ -238,14 +239,19 @@ class GPS(_base.BaseSensor):
         pass
 
     def export(self):
+        sensor_id = self._sensor_id
         return {
             "t": isotime(self.last_update),
-            "@type": "ribbitnetwork/sensor.gps",
-            "last_fix": isotime(self.last_fix),
+            "@type": "ribbitnetwork.sensor.Location",
+            "sensor_model": "gnss",
+            "sensor_id": sensor_id,
             "latitude": self.latitude,
             "longitude": self.longitude,
             "altitude": self.altitude,
-            "geoid_height": self.geoid_height,
-            "has_fix": self.has_fix,
-            "satellites": self.satellites,
+            "gnss": {
+                "has_fix": self.has_fix,
+                "last_fix": isotime(self.last_fix),
+                "geoid_height": self.geoid_height,
+                "satellites_count": self.satellites,
+            },
         }

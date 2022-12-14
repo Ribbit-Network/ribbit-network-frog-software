@@ -52,6 +52,7 @@ async def _main():
     import os
     import json
     import machine
+    import logging
 
     in_simulator = sys.platform == "linux"
 
@@ -70,7 +71,7 @@ async def _main():
     import ribbit.sensors.dps310 as _dps310
     import ribbit.sensors.board as _board
     import ribbit.sensors.gps as _gps
-    import ribbit.sensors.sdc30 as _sdc30
+    import ribbit.sensors.scd30 as _scd30
     import ribbit.time_manager as _time
     import ribbit.utils.i2c as _i2c
 
@@ -89,7 +90,7 @@ async def _main():
     sensor_types = {
         "gps": _gps.GPS,
         "dps310": _dps310.DPS310,
-        "sdc30": _sdc30.SDC30,
+        "scd30": _scd30.SCD30,
         "board": _board.Board,
         "memory": _board.Memory,
     }
@@ -97,9 +98,11 @@ async def _main():
     default_sensors = [
         {
             "type": "board",
+            "id": "",
         },
         {
             "type": "memory",
+            "id": "",
         },
     ]
 
@@ -108,15 +111,18 @@ async def _main():
             [
                 {
                     "type": "gps",
+                    "id": f"gps:{_gps.DEFAULT_ADDR}",
                     "address": _gps.DEFAULT_ADDR,
                 },
                 {
                     "type": "dps310",
+                    "id": f"dps310:{_dps310.DEFAULT_ADDR}",
                     "address": _dps310.DEFAULT_ADDR,
                 },
                 {
-                    "type": "sdc30",
-                    "address": _sdc30.DEFAULT_ADDR,
+                    "type": "scd30",
+                    "id": f"scd30:{_scd30.DEFAULT_ADDR}",
+                    "address": _scd30.DEFAULT_ADDR,
                 },
             ]
         )
@@ -146,20 +152,30 @@ async def _main():
     registry.sensors = {}
 
     class Output:
+        def __init__(self):
+            self._logger = logging.getLogger("output")
+
         async def write(self, data):
             coap = registry.golioth._coap
             if coap is None or not coap.connected:
                 return
 
-            try:
-                typ = data.pop("@type")
-                await coap.post(
-                    ".s/" + typ,
-                    json.dumps(data),
-                    format=_coap.CONTENT_FORMAT_APPLICATION_JSON,
-                )
-            except Exception:
-                pass
+            if isinstance(data, dict):
+                data = [data]
+
+            for item in data:
+                try:
+                    typ = item.pop("@type")
+                    data = json.dumps(item)
+                    self._logger.info("Data packet %s: %s", typ, data)
+
+                    await coap.post(
+                        ".s/" + typ,
+                        data,
+                        format=_coap.CONTENT_FORMAT_APPLICATION_JSON,
+                    )
+                except Exception:
+                    pass
 
     registry.sensors_output = Output()
 

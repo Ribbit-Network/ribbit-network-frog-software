@@ -31,6 +31,7 @@ class DPS310(_base.PollingSensor):
     config = _config.Object(
         name="dps310",
         keys=[
+            _config.String(name="id"),
             _config.Integer(name="address"),
             _config.Integer(name="interval", default=60),
             _config.Integer(name="pressure_oversampling", default=6),
@@ -41,12 +42,13 @@ class DPS310(_base.PollingSensor):
     def __init__(
         self,
         registry,
+        id,
         address,
         interval=60,
         pressure_oversampling=6,
         temperature_oversampling=6,
     ):
-        super().__init__(registry, interval)
+        super().__init__(registry, id, interval)
 
         self._i2c_bus = registry.i2c_bus
         self._i2c_addr = address
@@ -140,7 +142,7 @@ class DPS310(_base.PollingSensor):
         rev_id = buf[0] >> 4
         prod_id = buf[0] & 0x0F
         self._logger.info(
-            "Reading pressure from DSP310 (rev_id=%d, prod_id=%d)", rev_id, prod_id
+            "Reading pressure from DPS310 (rev_id=%d, prod_id=%d)", rev_id, prod_id
         )
         await self._wait_status(7)
 
@@ -182,9 +184,22 @@ class DPS310(_base.PollingSensor):
         self.last_update = time.time()
 
     def export(self):
-        return {
-            "t": isotime(self.last_update),
-            "@type": "ribbitnetwork/sensor.dps310",
-            "temperature": self.temperature,
-            "pressure": self.pressure,
-        }
+        t = isotime(self.last_update)
+        sensor_id = self._sensor_id
+
+        return [
+            {
+                "t": t,
+                "@type": "ribbitnetwork.sensor.Temperature",
+                "sensor_model": "dps310",
+                "sensor_id": sensor_id,
+                "temperature": self.temperature,
+            },
+            {
+                "t": t,
+                "@type": "ribbitnetwork.sensor.Pressure",
+                "sensor_model": "dps310",
+                "sensor_id": sensor_id,
+                "pressure": self.pressure,
+            },
+        ]
