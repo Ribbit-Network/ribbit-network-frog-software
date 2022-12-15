@@ -17,6 +17,8 @@ _MAX_OPTION_NUM = const(10)
 _BUF_MAX_SIZE = const(1500)
 _DEFAULT_PORT = const(5683)
 
+_DEBUG = const(0)
+
 VERSION_UNSUPPORTED = const(0)
 VERSION_1 = const(1)
 
@@ -381,6 +383,8 @@ class Coap:
         ping_interval_ms=60_000,
     ):
         self._logger = logging.getLogger(__name__)
+        if _DEBUG:
+            self._logger.setLevel(logging.DEBUG)
         self._callbacks = {}
         self._response_callback = None
         self._host = host
@@ -528,8 +532,8 @@ class Coap:
         _write_packet_options(buffer, packet)
         _write_packet_payload(buffer, packet)
 
-        # self._logger.info(">>>>>> %s (%d bytes)", packet, len(buffer))
-        # self._logger.info(">>>>>> %s", binascii.hexlify(buffer))
+        if _DEBUG:
+            self._logger.debug(">>>>>> %s", packet)
 
         try:
             await self._sock.write(buffer)
@@ -676,7 +680,8 @@ class Coap:
                 self._force_reconnect("error reading packet")
                 return
 
-            # self._logger.info("<<<<<< %s", packet)
+            if _DEBUG:
+                self._logger.debug("<<<<<< %s", packet)
 
             if packet.type == TYPE_CON:
                 await self._send_ack(packet.message_id)
