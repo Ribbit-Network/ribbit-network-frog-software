@@ -99,10 +99,18 @@ class Golioth:
 
     async def _on_connect(self, client):
         await self._send_firmware_report(client)
-        await client.observe(".c", self._on_golioth_config, accept=_coap.CONTENT_FORMAT_APPLICATION_JSON)
-        await client.observe(".rpc", self._on_golioth_rpc, accept=_coap.CONTENT_FORMAT_APPLICATION_JSON)
+        await client.observe(
+            ".c", self._on_golioth_config, accept=_coap.CONTENT_FORMAT_APPLICATION_JSON
+        )
+        await client.observe(
+            ".rpc", self._on_golioth_rpc, accept=_coap.CONTENT_FORMAT_APPLICATION_JSON
+        )
         if not self._in_simulator:
-            await client.observe(".u/desired", self._on_golioth_firmware, accept=_coap.CONTENT_FORMAT_APPLICATION_JSON)
+            await client.observe(
+                ".u/desired",
+                self._on_golioth_firmware,
+                accept=_coap.CONTENT_FORMAT_APPLICATION_JSON,
+            )
 
     async def _on_golioth_config(self, client, packet):
         req = json.loads(packet.payload)

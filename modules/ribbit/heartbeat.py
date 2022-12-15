@@ -41,4 +41,6 @@ class Heartbeat:
             duration = time.ticks_diff(time.ticks_ms(), start)
 
             if duration > warn_interval:
-                self._logger.warning("Event loop blocked for %d ms", duration - interval)
+                self._logger.warning(
+                    "Event loop blocked for %d ms", duration - interval
+                )
