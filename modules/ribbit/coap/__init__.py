@@ -156,14 +156,11 @@ class _DTLSocket:
         return self.s.recv_into(buf)
 
     def write(self, buf):
-        if not isinstance(buf, memoryview):
-            buf = memoryview(buf)
-        off = 0
-        while off < len(buf):
+        while True:
             yield _asyncio_core._io_queue.queue_write(self.s)
-            ret = self.s.send(buf[off:])
-            if ret is not None:
-                off += ret
+            r = self.s.send(buf)
+            if r is not None:
+                return r
 
 
 class CoapOption:
