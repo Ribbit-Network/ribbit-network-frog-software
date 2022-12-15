@@ -282,7 +282,9 @@ def _parse_packet(buffer, packet):
     if token_len == 0:
         packet.token = None
     elif token_len == 4:
-        packet.token = (buffer[4] << 24) | (buffer[5] << 16) | (buffer[6] << 8) | buffer[7]
+        packet.token = (
+            (buffer[4] << 24) | (buffer[5] << 16) | (buffer[6] << 8) | buffer[7]
+        )
     else:
         raise COAPInvalidPacketError()
 
@@ -316,9 +318,9 @@ def _write_packet_header_info(buffer, packet):
     buffer.append(packet.message_id & 0xFF)
 
     if packet.token is not None:
-        buffer.append((packet.token >> 24) & 0xff)
-        buffer.append((packet.token >> 16) & 0xff)
-        buffer.append((packet.token >> 8) & 0xff)
+        buffer.append((packet.token >> 24) & 0xFF)
+        buffer.append((packet.token >> 16) & 0xFF)
+        buffer.append((packet.token >> 8) & 0xFF)
         buffer.append(packet.token & 0xFF)
 
 
