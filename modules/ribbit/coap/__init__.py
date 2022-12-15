@@ -443,7 +443,7 @@ class Coap:
                 sock = ssl.wrap_socket(
                     sock,
                     dtls=True,
-                    do_handshake=True,
+                    do_handshake=False,
                     **self._ssl_opts,
                 )
 
