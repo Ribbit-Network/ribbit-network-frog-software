@@ -64,7 +64,7 @@ def build_app(registry):
             raise HTTPException(400)
 
         try:
-            registry.config.set(DOMAIN_LOCAL, values)
+            registry.config.set(values)
             return "{}", 201, {"Content-Type": "application/json"}
 
         except ValueError as exc:

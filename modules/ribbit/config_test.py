@@ -14,7 +14,7 @@ def test_config():
         assert foo is None
         assert bar is None
 
-        c.set(_config.DOMAIN_LOCAL, {"foo": "test"})
+        c.set({"foo": "test"})
 
         assert cfg_watcher.changed
         foo, bar = cfg_watcher.get()
@@ -34,22 +34,22 @@ def test_config_override():
         stored=False,
     )
 
-    c.set(_config.DOMAIN_LOCAL, {"bar": 1})
+    c.set({"bar": 1})
     domain, value, _ = c.get("bar")
     assert domain == _config.DOMAIN_LOCAL
     assert value == 1
 
-    c.set(_config.DOMAIN_REMOTE, {"bar": 2})
+    c.set_remote({"bar": 2})
     domain, value, _ = c.get("bar")
     assert domain == _config.DOMAIN_REMOTE
     assert value == 2
 
-    c.set(_config.DOMAIN_REMOTE, {"bar": None})
+    c.set_remote({"bar": None})
     domain, value, _ = c.get("bar")
     assert domain == _config.DOMAIN_LOCAL
     assert value == 1
 
-    c.set(_config.DOMAIN_LOCAL_OVERRIDE, {"bar": 4})
+    c.set_override({"bar": 4})
     domain, value, _ = c.get("bar")
     assert domain == _config.DOMAIN_LOCAL_OVERRIDE
     assert value == 4
@@ -73,20 +73,20 @@ def test_config_array():
         stored=False,
     )
 
-    c.set(_config.DOMAIN_LOCAL, {"bar": []})
+    c.set({"bar": []})
     domain, value, _ = c.get("bar")
     assert domain == _config.DOMAIN_LOCAL
     assert value == []
 
     raised_exc = None
     try:
-        c.set(_config.DOMAIN_LOCAL, {"bar": ["foo"]})
+        c.set({"bar": ["foo"]})
     except Exception as exc:
         raised_exc = exc
 
     assert isinstance(raised_exc, ValueError)
 
-    c.set(_config.DOMAIN_LOCAL, {"bar": [{"foo1": "value1"}]})
+    c.set({"bar": [{"foo1": "value1"}]})
     domain, value, _ = c.get("bar")
     assert domain == _config.DOMAIN_LOCAL
     assert value == [{"foo1": "value1", "foo2": None}]
