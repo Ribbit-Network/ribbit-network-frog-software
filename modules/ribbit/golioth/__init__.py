@@ -121,7 +121,7 @@ class Golioth:
             k = k.replace("_", ".").lower()
             config[k] = v
 
-        self._config.set(_config.DOMAIN_REMOTE, config)
+        self._config.set_remote(config)
 
         await client.post(
             ".c/status",

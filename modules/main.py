@@ -12,7 +12,6 @@ def _setup_improv(registry):
 
     async def _improv_set_wifi_settings(ssid, password):
         registry.config.set(
-            _config.DOMAIN_LOCAL,
             {
                 _network.CONFIG_WIFI_SSID: ssid,
                 _network.CONFIG_WIFI_PASSWORD: password,
