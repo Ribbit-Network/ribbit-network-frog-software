@@ -41,9 +41,19 @@ def build_app(registry):
             headers["Cache-Control"] = "public, max-age=604800, immutable"
 
         return data, 200, headers
+    
+    @app.route("/api/sensors")
+    @with_websocket
+    async def sensor_status(request, ws):
+        while True:
+            ret = collections.OrderedDict()
+            for sensor in registry.sensors.values():
+                ret[sensor.config.name] = sensor.export()
 
-    @app.get("/api/config")
-    async def config_list(req):
+            await ws.send(json.dumps(ret))
+
+    @app.route("/api/registry")
+    def registry_list(request):
         ret = collections.OrderedDict()
         for k in registry.config.keys():
             domain, value, key_info = registry.config.get(k)
@@ -54,32 +64,7 @@ def build_app(registry):
             out["domain"] = DOMAIN_NAMES[domain]
             if not key_info.protected:
                 out["value"] = value
-
+        
         return json.dumps(ret), 200, {"Content-Type": "application/json"}
-
-    @app.patch("/api/config")
-    async def config_set(req):
-        values = req.json
-
-        if not isinstance(values, dict):
-            raise HTTPException(400)
-
-        try:
-            registry.config.set(DOMAIN_LOCAL, values)
-            return "{}", 201, {"Content-Type": "application/json"}
-
-        except ValueError as exc:
-            return (
-                json.dumps({"error": str(exc)}),
-                400,
-                {"Content-Type": "application/json"},
-            )
-
-    @app.route('/echo')
-    @with_websocket
-    async def echo(request, ws):
-        while True:
-            data = await ws.receive()
-            await ws.send(data)
-
+    
     return app

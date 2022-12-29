@@ -1,35 +1,297 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
   <head>
-    <title>Microdot WebSocket Demo</title>
+    <meta charset="utf-8" />
+    <title>Ribbit Frog installer</title>
+    <meta name="viewport" content="width=device-width" />
+    <meta name="color-scheme" content="dark light" />
+    <style>
+        body {
+            font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI",
+                Roboto, Ubuntu, sans-serif;
+            color: white;
+            padding: 0;
+            margin: 0;
+            line-height: 1.4;
+
+            background: #556d55;
+            margin: 2em;
+        }
+        .logo {
+            width: 300px;
+            display: block;
+            margin: 0 auto;
+        }
+        .content {
+            margin: 0 auto;
+            padding: 12px;
+        }
+        h1 {
+            text-align: center;
+        }
+        .sensors {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .sensor {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 250px;
+            width: 200px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 5px;
+            padding: 20px;
+            margin: 10px;
+        }
+        .sensor-header {
+            display: flex;
+            flex-direction: row;
+            justify-content: start;
+        }
+        .sensor-title {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .sensor-data {
+            font-size: 1em;
+        }
+        .sensor-status {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ff0000;
+            margin: 8px 10px 0 10px;
+        }
+        .blink {
+            animation: blink 2s linear infinite;
+        }
+        @keyframes blink {
+            0% {
+                opacity: 0.1;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0.1;
+            }
+        }
+        .sensor-last-updated {
+            font-size: 0.8em;
+        }
+        h2 {
+            margin-top: 2em;
+        }
+        .other-info-wrapper {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .other-info {
+            background: rgba(0, 0, 0, 0.1);
+            min-width: 300px;
+            min-height: 100px;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 10px;
+        }
+        #other-info-content {
+            margin-top: 20px;
+        }
+
+    </style>
   </head>
   <body>
-    <h1>Microdot WebSocket Demo</h1>
-    <div id="log"></div>
-    <br>
-    <form id="form">
-      <label for="text">Input: </label>
-      <input type="text" id="text" autofocus>
-    </form>
-    <script>
-      const log = (text, color) => {
-        document.getElementById('log').innerHTML += `<span style="color: ${color}">${text}</span><br>`;
-      };
+    <div class="content">
+      <img src="./logo.png" alt="" class="logo"/>
+      <h1>Frog Sensor Status</h1>
+      <div class="sensors">
+        <div class="sensor" id="Barometer">
+          <div class="sensor-header">
+            <div class="sensor-title">Barometer</div>
+            <div class="sensor-status"></div>
+          </div>
+          <div class="sensor-data"></div>
+          <div class="sensor-last-updated"></div>
+        </div>
+        <div class="sensor" id="CO2">
+          <div class="sensor-header">
+            <div class="sensor-title">CO2</div>
+            <div class="sensor-status"></div>
+          </div>
+          <div class="sensor-data"></div>
+          <div class="sensor-last-updated"></div>
+        </div>
+        <div class="sensor" id="GPS">
+          <div class="sensor-header">
+            <div class="sensor-title">GPS</div>
+            <div class="sensor-status"></div>
+          </div>
+          <div class="sensor-data"></div>
+          <div class="sensor-last-updated"></div>
+        </div>
+      </div>
+      <div class="other-info-wrapper">
+        <div class="other-info">
+            <div class="sensor-title">Other Info</div>
+            <div id="other-info-content"></div>
+        </div>
+      </div>
+    </div>
 
-      const socket = new WebSocket('ws://' + location.host + '/echo');
-      socket.addEventListener('message', ev => {
-        log('<<< ' + ev.data, 'blue');
-      });
-      socket.addEventListener('close', ev => {
-        log('<<< closed');
-      });
-      document.getElementById('form').onsubmit = ev => {
-        ev.preventDefault();
-        const textField = document.getElementById('text');
-        log('>>> ' + textField.value, 'red');
-        socket.send(textField.value);
-        textField.value = '';
-      };
-    </script>
+    <script>
+        const getSocket = (path) => {
+          const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+          return new WebSocket(`${protocol}//${location.host}${path}`);
+        };
+
+        const getRoute = (path) => {
+          const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
+          return `${protocol}//${location.host}${path}`;
+        };
+
+        const updateData = (sensor, data) => {
+          console.log(sensor, data)
+          const sensorElement = document.getElementById(sensor);
+          const sensorStatus = sensorElement.querySelector('.sensor-status');
+          const sensorData = sensorElement.querySelector('.sensor-data');
+          const sensorLastUpdated = sensorElement.querySelector('.sensor-last-updated');
+
+          // Update sensor status
+          if (data.status) {
+            sensorStatus.style.background = '#00ff00';
+            sensorStatus.classList.add('blink');
+          } else {
+            sensorStatus.style.background = '#ff0000';
+            sensorStatus.classList.remove('blink');
+          }
+
+          // Update sensor data
+          if (data.data !== null) {
+            sensorData.innerHTML = Object.entries(data.data).map(([key, value]) => (value !== '') ? `<b>${key}</b>: ${value}<br/>` : `<b>${key}</b><br/>`).join('');
+          }
+
+          // Update sensor last updated time
+          if (data.lastUpdated !== null) {
+            sensorLastUpdated.innerHTML = `<b>Last updated</b>: ${data.lastUpdated}`;
+          }
+        };
+  
+        // Get sensor data
+        const sensorSocket = getSocket('/api/sensors');
+        prevData = {};
+        sensorSocket.addEventListener('message', ev => {
+            const currentTime = new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', hour12: true, hour: 'numeric', minute: 'numeric', second: 'numeric' }) + ' PT';
+            const data = JSON.parse(ev.data);
+
+            const dps310Defined = data.dps310 !== null && 
+                data.dps310.pressure !== null && 
+                data.dps310.temperature !== null;
+            const dps310Updated = dps310Defined && 
+                (prevData.dps310 === undefined || 
+                prevData.dps310.pressure !== data.dps310.pressure || 
+                prevData.dps310.temperature !== data.dps310.temperature);
+            if (dps310Defined && dps310Updated) {
+                barometerData = {
+                    'Pressure': `${data.dps310.pressure.toFixed(2)} hPa`,
+                    'Temperature': `${data.dps310.temperature.toFixed(2)} °C`,
+                };
+                updateData('Barometer', {
+                    status: true,
+                    data: barometerData,
+                    lastUpdated: currentTime,
+                });
+            } else if (!dps310Defined) {
+                updateData('Barometer', {
+                    status: false,
+                    data: null,
+                    lastUpdated: null,
+                });
+            }
+
+            const sdc30Defined = data.sdc30 !== null && 
+                data.sdc30.co2 !== null && 
+                data.sdc30.temperature !== null && 
+                data.sdc30.humidity !== null;
+            const sdc30Updated = sdc30Defined && 
+                (prevData.sdc30 === undefined || 
+                prevData.sdc30.co2 !== data.sdc30.co2 || 
+                prevData.sdc30.temperature !== data.sdc30.temperature || 
+                prevData.sdc30.humidity !== data.sdc30.humidity);
+            if (sdc30Defined && sdc30Updated) {
+                co2Data = {
+                    'CO2': `${data.sdc30.co2.toFixed(2)} ppm`,
+                    'Temperature': `${data.sdc30.temperature.toFixed(2)} °C`,
+                    'Humidity': `${data.sdc30.humidity.toFixed(2)}%`,
+                }
+
+                updateData('CO2', {
+                    status: true,
+                    data: co2Data,
+                    lastUpdated: currentTime,
+                });
+            } else if (!sdc30Defined) {
+                updateData('CO2', {
+                    status: false,
+                    data: null,
+                    lastUpdated: null,
+                });
+            }
+
+            const gpsDefined = data.gps !== null && 
+                data.gps.latitude !== null && 
+                data.gps.longitude !== null;
+            const gpsUpdated = gpsDefined && 
+                (prevData.gps === undefined || 
+                prevData.gps.latitude === null || 
+                prevData.gps.longitude === null || 
+                prevData.gps.latitude.toFixed(2) !== data.gps.latitude.toFixed(2) || 
+                prevData.gps.longitude.toFixed(2) !== data.gps.longitude.toFixed(2));
+            if (gpsDefined && gpsUpdated) {
+                gpsData = {
+                    'Latitude': `${data.gps.latitude.toFixed(2)}°`,
+                    'Longitude': `${data.gps.longitude.toFixed(2)}°`,
+                }
+                updateData('GPS', {
+                    status: data.gps.has_fix,
+                    data: gpsData,
+                    lastUpdated: currentTime,
+                });
+            } else if (!gpsDefined) {
+                updateData('GPS', {
+                    status: false,
+                    data: (data.gps !== null && !data.gps.has_fix) ? {'No GPS Fix': ''} : null,
+                    lastUpdated: null,
+                });
+            }
+
+            prevData = data;
+        });
+
+        const registryPath = getRoute('/api/registry');
+        fetch(registryPath)
+        .then(response => response.json())
+        .then(data => {
+            ret = {}
+            if (data['wifi.ssid'] !== null) {
+                ret['WiFi SSID'] = data['wifi.ssid']['value']
+            }
+            if (data['golioth.host'] !== null) {
+                ret['Golioth Host'] = data['golioth.host']['value']
+            }
+            if (data['golioth.user'] !== null) {
+                ret['Golioth User'] = data['golioth.user']['value']
+            }
+
+            otherInfoContent = document.getElementById('other-info-content');
+            otherInfoContent.innerHTML = Object.entries(ret).map(([key, value]) => `<b>${key}</b>: ${value}<br/>`).join('');
+        });
+      </script>
   </body>
 </html>
