@@ -69,7 +69,6 @@ class NetworkManager:
         self,
         config,
         always_on=True,
-        hostname="ribbit",
         poll_interval_connected_ms=5000,
         poll_interval_connecting_ms=500,
     ):

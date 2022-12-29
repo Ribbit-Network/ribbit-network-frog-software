@@ -64,17 +64,18 @@ def _encode16(buf, data):
     buf[2] = _crc8(buf[0], buf[1])
 
 
-class SDC30(_base.PollingSensor):
+class SCD30(_base.PollingSensor):
     config = _config.Object(
-        name="sdc30",
+        name="scd30",
         keys=[
+            _config.String(name="id"),
             _config.Integer(name="address"),
             _config.Integer(name="interval", default=60),
         ],
     )
 
-    def __init__(self, registry, address, interval=60):
-        super().__init__(registry, interval)
+    def __init__(self, registry, id, address, interval=60):
+        super().__init__(registry, id, interval)
 
         self._i2c_bus = registry.i2c_bus
         self._i2c_addr = address
@@ -207,13 +208,43 @@ class SDC30(_base.PollingSensor):
         self.humidity = humidity
 
     def export(self):
-        return {
-            "t": isotime(self.last_update),
-            "@type": "ribbitnetwork/sensor.sdc30",
-            "temperature": self.temperature,
-            "temperature_offset": self._temperature_offset / 100
+        t = isotime(self.last_update)
+        sensor_id = self._sensor_id
+        co2_concentration = self.co2
+        temperature = self.temperature
+        temperature_offset = (
+            self._temperature_offset / 100
             if self._temperature_offset is not None
-            else None,
-            "co2": self.co2,
-            "humidity": self.humidity,
-        }
+            else None
+        )
+        humidity = self.humidity
+
+        return [
+            {
+                "t": t,
+                "@type": "ribbitnetwork.sensor.Concentration",
+                "sensor_model": "scd30",
+                "sensor_id": sensor_id,
+                "gas_type": "co2",
+                "concentration": co2_concentration,
+                "scd30": {
+                    "temperature": temperature,
+                    "temperature_offset": temperature_offset,
+                    "humidity": humidity,
+                },
+            },
+            {
+                "t": t,
+                "@type": "ribbitnetwork.sensor.Temperature",
+                "sensor_model": "scd30",
+                "sensor_id": sensor_id,
+                "temperature": temperature,
+            },
+            {
+                "t": t,
+                "@type": "ribbitnetwork.sensor.Humidity",
+                "sensor_model": "scd30",
+                "sensor_id": sensor_id,
+                "humidity": humidity,
+            },
+        ]

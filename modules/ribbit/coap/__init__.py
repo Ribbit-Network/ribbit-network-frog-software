@@ -17,6 +17,8 @@ _MAX_OPTION_NUM = const(10)
 _BUF_MAX_SIZE = const(1500)
 _DEFAULT_PORT = const(5683)
 
+_DEBUG = const(0)
+
 VERSION_UNSUPPORTED = const(0)
 VERSION_1 = const(1)
 
@@ -156,14 +158,11 @@ class _DTLSocket:
         return self.s.recv_into(buf)
 
     def write(self, buf):
-        if not isinstance(buf, memoryview):
-            buf = memoryview(buf)
-        off = 0
-        while off < len(buf):
+        while True:
             yield _asyncio_core._io_queue.queue_write(self.s)
-            ret = self.s.send(buf[off:])
-            if ret is not None:
-                off += ret
+            r = self.s.send(buf)
+            if r is not None:
+                return r
 
 
 class CoapOption:
@@ -282,7 +281,9 @@ def _parse_packet(buffer, packet):
     if token_len == 0:
         packet.token = None
     elif token_len == 4:
-        packet.token = (buffer[4] << 24) | (buffer[5] << 16) | (buffer[6] << 8) | buffer[7]
+        packet.token = (
+            (buffer[4] << 24) | (buffer[5] << 16) | (buffer[6] << 8) | buffer[7]
+        )
     else:
         raise COAPInvalidPacketError()
 
@@ -316,9 +317,9 @@ def _write_packet_header_info(buffer, packet):
     buffer.append(packet.message_id & 0xFF)
 
     if packet.token is not None:
-        buffer.append((packet.token >> 24) & 0xff)
-        buffer.append((packet.token >> 16) & 0xff)
-        buffer.append((packet.token >> 8) & 0xff)
+        buffer.append((packet.token >> 24) & 0xFF)
+        buffer.append((packet.token >> 16) & 0xFF)
+        buffer.append((packet.token >> 8) & 0xFF)
         buffer.append(packet.token & 0xFF)
 
 
@@ -382,6 +383,8 @@ class Coap:
         ping_interval_ms=60_000,
     ):
         self._logger = logging.getLogger(__name__)
+        if _DEBUG:
+            self._logger.setLevel(logging.DEBUG)
         self._callbacks = {}
         self._response_callback = None
         self._host = host
@@ -444,7 +447,7 @@ class Coap:
                 sock = ssl.wrap_socket(
                     sock,
                     dtls=True,
-                    do_handshake=True,
+                    do_handshake=False,
                     **self._ssl_opts,
                 )
 
@@ -529,8 +532,8 @@ class Coap:
         _write_packet_options(buffer, packet)
         _write_packet_payload(buffer, packet)
 
-        # self._logger.info(">>>>>> %s (%d bytes)", packet, len(buffer))
-        # self._logger.info(">>>>>> %s", binascii.hexlify(buffer))
+        if _DEBUG:
+            self._logger.debug(">>>>>> %s", packet)
 
         try:
             await self._sock.write(buffer)
@@ -677,7 +680,8 @@ class Coap:
                 self._force_reconnect("error reading packet")
                 return
 
-            # self._logger.info("<<<<<< %s", packet)
+            if _DEBUG:
+                self._logger.debug("<<<<<< %s", packet)
 
             if packet.type == TYPE_CON:
                 await self._send_ack(packet.message_id)
