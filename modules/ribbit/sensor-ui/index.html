@@ -157,7 +157,6 @@
         };
 
         const updateData = (sensor, data) => {
-          console.log(sensor, data)
           const sensorElement = document.getElementById(sensor);
           const sensorStatus = sensorElement.querySelector('.sensor-status');
           const sensorData = sensorElement.querySelector('.sensor-data');
@@ -190,89 +189,115 @@
             const currentTime = new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', hour12: true, hour: 'numeric', minute: 'numeric', second: 'numeric' }) + ' PT';
             const data = JSON.parse(ev.data);
 
-            const dps310Defined = data.dps310 !== null && 
-                data.dps310.pressure !== null && 
-                data.dps310.temperature !== null;
-            const dps310Updated = dps310Defined && 
-                (prevData.dps310 === undefined || 
-                prevData.dps310.pressure !== data.dps310.pressure || 
-                prevData.dps310.temperature !== data.dps310.temperature);
-            if (dps310Defined && dps310Updated) {
-                barometerData = {
-                    'Pressure': `${data.dps310.pressure.toFixed(2)} hPa`,
-                    'Temperature': `${data.dps310.temperature.toFixed(2)} °C`,
-                };
-                updateData('Barometer', {
-                    status: true,
-                    data: barometerData,
-                    lastUpdated: currentTime,
-                });
-            } else if (!dps310Defined) {
-                updateData('Barometer', {
-                    status: false,
-                    data: null,
-                    lastUpdated: null,
-                });
-            }
+            // Update barometer data
+            updateData('Barometer', getBarometerData(data, currentTime));
 
-            const sdc30Defined = data.sdc30 !== null && 
-                data.sdc30.co2 !== null && 
-                data.sdc30.temperature !== null && 
-                data.sdc30.humidity !== null;
-            const sdc30Updated = sdc30Defined && 
-                (prevData.sdc30 === undefined || 
-                prevData.sdc30.co2 !== data.sdc30.co2 || 
-                prevData.sdc30.temperature !== data.sdc30.temperature || 
-                prevData.sdc30.humidity !== data.sdc30.humidity);
-            if (sdc30Defined && sdc30Updated) {
+            // Update CO2 data
+            updateData('CO2', getCO2Data(data, currentTime));
+
+            // Update GPS data
+            updateData('GPS', getGPSData(data, currentTime));
+
+            prevData = data;
+        });
+
+        // Get data from each of the sensors
+        // Return format is { status: true/false, data: { key: value }, lastUpdated: 'time' }
+        const getCO2Data = (data, currentTime) => {
+            const defined = (co2Data) => {
+                return co2Data !== undefined && 
+                    co2Data.length === 3 &&
+                    co2Data[0].concentration !== null && 
+                    co2Data[1].temperature !== null && 
+                    co2Data[2].humidity !== null;
+            };
+            const same = (co2Data1, co2Data2) => {
+                return co2Data1[0].concentration === co2Data2[0].concentration &&
+                    co2Data1[1].temperature === co2Data2[1].temperature &&
+                    co2Data1[2].humidity === co2Data2[2].humidity;
+            };
+
+            const co2Defined = defined(data.scd30)
+            const prevCo2Defined = defined(prevData.scd30)
+            const co2Updated = co2Defined && 
+                (!prevCo2Defined || !same(data.scd30, prevData.scd30));
+
+            if (co2Defined && co2Updated) {
                 co2Data = {
-                    'CO2': `${data.sdc30.co2.toFixed(2)} ppm`,
-                    'Temperature': `${data.sdc30.temperature.toFixed(2)} °C`,
-                    'Humidity': `${data.sdc30.humidity.toFixed(2)}%`,
+                    'CO2': data.scd30[0].concentration + ' ppm',
+                    'Temperature': data.scd30[1].temperature + ' °C',
+                    'Humidity': data.scd30[2].humidity + ' %'
                 }
 
-                updateData('CO2', {
-                    status: true,
-                    data: co2Data,
-                    lastUpdated: currentTime,
-                });
-            } else if (!sdc30Defined) {
-                updateData('CO2', {
-                    status: false,
-                    data: null,
-                    lastUpdated: null,
-                });
-            }
+                return {status: true, data: co2Data, lastUpdated: currentTime};
+            } else if (!co2Defined) {
+                return {status: false, data: null, lastUpdated: null};
+            } else {
+                return {status: true, data: null, lastUpdated: null};
+            } 
+        };
 
-            const gpsDefined = data.gps !== null && 
-                data.gps.latitude !== null && 
-                data.gps.longitude !== null;
-            const gpsUpdated = gpsDefined && 
-                (prevData.gps === undefined || 
-                prevData.gps.latitude === null || 
-                prevData.gps.longitude === null || 
-                prevData.gps.latitude.toFixed(2) !== data.gps.latitude.toFixed(2) || 
-                prevData.gps.longitude.toFixed(2) !== data.gps.longitude.toFixed(2));
+        const getBarometerData = (data, currentTime) => {
+            const defined = (barometerData) => {
+                return barometerData !== undefined && 
+                    barometerData.length === 2 &&
+                    barometerData[1].pressure !== null && 
+                    barometerData[0].temperature !== null;
+            };
+            const same = (barometerData1, barometerData2) => {
+                return barometerData1[1].pressure === barometerData2[1].pressure &&
+                    barometerData1[0].temperature === barometerData2[0].temperature;
+            };
+
+            const barometerDefined = defined(data.dps310)
+            const prevBarometerDefined = defined(prevData.dps310)
+            const barometerUpdated = barometerDefined && 
+                (!prevBarometerDefined || !same(data.dps310, prevData.dps310));
+
+            if (barometerDefined && barometerUpdated) {
+                barometerData = {
+                    'Pressure': data.dps310[1].pressure + ' hPa',
+                    'Temperature': data.dps310[0].temperature + ' °C'
+                };
+                return {status: true, data: barometerData, lastUpdated: currentTime};
+            } else if (!barometerDefined) {
+                return {status: false, data: null, lastUpdated: null};
+            } else {
+                return {status: true, data: null, lastUpdated: null};
+            }
+        }
+
+        const getGPSData = (data, currentTime) => {
+            const defined = (gpsData) => {
+                return gpsData !== undefined && 
+                    gpsData.latitude !== null && 
+                    gpsData.longitude !== null && 
+                    gpsData.gnss !== null && 
+                    gpsData.gnss.has_fix !== null;
+            };
+            const same = (gpsData1, gpsData2) => {
+                return gpsData1.latitude === gpsData2.latitude && 
+                    gpsData1.longitude === gpsData2.longitude;
+            };
+
+            const gpsDefined = defined(data.gps)
+            const prevGPSDefined = defined(prevData.gps)
+            const gpsUpdated = gpsDefined && (!prevGPSDefined || same(data.gps, prevData.gps))
+
             if (gpsDefined && gpsUpdated) {
                 gpsData = {
                     'Latitude': `${data.gps.latitude.toFixed(2)}°`,
                     'Longitude': `${data.gps.longitude.toFixed(2)}°`,
-                }
-                updateData('GPS', {
-                    status: data.gps.has_fix,
-                    data: gpsData,
-                    lastUpdated: currentTime,
-                });
+                    'GNSS': `${data.gps.gnss.has_fix ? 'Fix' : 'No Fix'}`,
+                };
+                return {status: true, data: gpsData, lastUpdated: currentTime};
             } else if (!gpsDefined) {
-                updateData('GPS', {
-                    status: false,
-                    data: (data.gps !== null && !data.gps.has_fix) ? {'No GPS Fix': ''} : null,
-                    lastUpdated: null,
-                });
+                gpsData = (data.gps !== null && !data.gps.has_fix) ? {'No GPS Fix': ''} : null;
+                return {status: false, data: gpsData, lastUpdated: null};
+            } else {
+                return {status: true, data: null, lastUpdated: null};
             }
-
-            prevData = data;
-        });
+        }
 
         const registryPath = getRoute('/api/registry');
         fetch(registryPath)
