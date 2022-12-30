@@ -1,6 +1,7 @@
 import json
 import uasyncio as asyncio
 import collections
+import network
 
 from microdot_asyncio import Microdot, Request, Response, HTTPException
 from microdot_asyncio_websocket import with_websocket
@@ -15,6 +16,10 @@ Request.max_content_length = 1 << 30
 def build_app(registry):
     app = Microdot()
     app.registry = registry
+
+    # Set mdns hostname to 'frog'
+    nic = network.WLAN(network.STA_IF)
+    nic.config(hostname="frog")
 
     @app.errorhandler(404)
     async def static(request):
