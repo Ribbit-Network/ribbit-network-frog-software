@@ -73,6 +73,7 @@ def build_app(registry):
                     }
                 else:
                     print(f'Unknown sensor type: {sensor.config.name}')
+                    raise('Unknown sensor type')
 
             await ws.send(json.dumps(ret))
 
