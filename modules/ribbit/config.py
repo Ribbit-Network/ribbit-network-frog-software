@@ -299,7 +299,7 @@ class ConfigRegistry:
                 if not watcher_set:
                     self._watchers.pop(k)
 
-    def set(self, domain, config):
+    def _set(self, domain, config):
         assert domain in _STORED_DOMAINS
 
         new_keys = {}
@@ -328,3 +328,12 @@ class ConfigRegistry:
         for w in affected_watchers:
             values = tuple(self.get(k)[1] for k in w.keys)
             w.notify(values)
+
+    def set(self, config):
+        return self._set(DOMAIN_LOCAL, config)
+
+    def set_remote(self, config):
+        return self._set(DOMAIN_REMOTE, config)
+
+    def set_override(self, config):
+        return self._set(DOMAIN_LOCAL_OVERRIDE, config)

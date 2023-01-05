@@ -4,6 +4,8 @@ PORT_DIR := ${MP_DIR}/ports/esp32
 BOARD := ribbit
 BUILD_DIR := ${PORT_DIR}/build-${BOARD}
 
+DEVICE := /dev/cu.usbmodem101
+
 .PHONY: build
 build:
 	rm -f ${BUILD_DIR}/frozen_content.c
@@ -30,7 +32,7 @@ simulator: ${UNIX_DIR}/build-simulator/micropython
 
 .PHONY: flash
 flash: build
-	esptool.py -p /dev/cu.usbmodem1101 -b 460800 --before default_reset --after no_reset \
+	esptool.py -p ${DEVICE} -b 460800 --before default_reset --after no_reset \
 		--chip esp32s3 \
 		write_flash --flash_mode dio --flash_size detect --flash_freq 80m \
 		0x0 firmware/bootloader.bin \

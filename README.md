@@ -33,7 +33,7 @@ $ make build
 Flash the firmware to a device connected to `/dev/ttyACM*`:
 
 ```shell
-$ make flash
+$ make DEVICE=/dev/ttyACM0 flash
 ```
 
 ## Need Help?

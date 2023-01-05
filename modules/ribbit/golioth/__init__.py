@@ -34,6 +34,7 @@ CONFIG_GOLIOTH_HOST = const("golioth.host")
 CONFIG_GOLIOTH_PORT = const("golioth.port")
 CONFIG_GOLIOTH_USER = const("golioth.user")
 CONFIG_GOLIOTH_PASSWORD = const("golioth.password")
+CONFIG_GOLIOTH_OTA_ENABLED = const("golioth.ota.enabled")
 
 _CONFIG_KEYS = [
     CONFIG_GOLIOTH_ENABLED,
@@ -41,6 +42,7 @@ _CONFIG_KEYS = [
     CONFIG_GOLIOTH_PORT,
     CONFIG_GOLIOTH_USER,
     CONFIG_GOLIOTH_PASSWORD,
+    CONFIG_GOLIOTH_OTA_ENABLED,
 ]
 
 CONFIG_KEYS = [
@@ -52,6 +54,7 @@ CONFIG_KEYS = [
     _config.Integer(name=CONFIG_GOLIOTH_PORT, default=5684),
     _config.String(name=CONFIG_GOLIOTH_USER, default=None),
     _config.String(name=CONFIG_GOLIOTH_PASSWORD, default=None, protected=True),
+    _config.Boolean(name=CONFIG_GOLIOTH_OTA_ENABLED, default=True),
 ]
 
 
@@ -63,6 +66,7 @@ class Golioth:
         self._coap = None
         self._ota_manager = _ota.OTAManager()
         self._in_simulator = in_simulator
+        self._ota_enabled = False
 
         self.register_rpc("ping", self._pong_rpc)
 
@@ -71,7 +75,7 @@ class Golioth:
     async def _loop(self):
         with self._config.watch(*_CONFIG_KEYS) as cfg_watcher:
             while True:
-                enabled, host, port, user, password = cfg_watcher.get()
+                enabled, host, port, user, password, self._ota_enabled = cfg_watcher.get()
 
                 enabled = enabled and (user is not None and password is not None)
 
@@ -105,7 +109,7 @@ class Golioth:
         await client.observe(
             ".rpc", self._on_golioth_rpc, accept=_coap.CONTENT_FORMAT_APPLICATION_JSON
         )
-        if not self._in_simulator:
+        if self._ota_enabled and not self._in_simulator:
             await client.observe(
                 ".u/desired",
                 self._on_golioth_firmware,
@@ -121,7 +125,7 @@ class Golioth:
             k = k.replace("_", ".").lower()
             config[k] = v
 
-        self._config.set(_config.DOMAIN_REMOTE, config)
+        self._config.set_remote(config)
 
         await client.post(
             ".c/status",

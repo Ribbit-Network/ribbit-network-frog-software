@@ -1,8 +1,8 @@
 import os
 
-BASE_PATH = "./sensor-ui/"
+BASE_PATH = "../modules/ribbit/sensor-ui/"
 
-with open("_static.py", "w") as o:
+with open("../modules/ribbit/_static.py", "w") as o:
     o.write("assets = {\n")
     first = True
 

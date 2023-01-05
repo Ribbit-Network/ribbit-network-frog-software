@@ -7,6 +7,7 @@ from microdot_asyncio_websocket import with_websocket
 
 from ._static import assets
 from .config import DOMAIN_LOCAL, DOMAIN_NAMES
+from ribbit.utils.time import isotime
 
 
 Request.max_content_length = 1 << 30
@@ -48,7 +49,29 @@ def build_app(registry):
         while True:
             ret = collections.OrderedDict()
             for sensor in registry.sensors.values():
-                ret[sensor.config.name] = sensor.export()
+                if sensor.config.name == "dps310":
+                    ret[sensor.config.name] = {
+                        "temperature": sensor.temperature,
+                        "pressure": sensor.pressure,
+                        "t": isotime(sensor.last_update),
+                    }
+                elif sensor.config.name == "scd30":
+                    ret[sensor.config.name] = {
+                        "temperature": sensor.temperature,
+                        "co2": sensor.co2,
+                        "humidity": sensor.humidity,
+                        "t": isotime(sensor.last_update),
+                    }
+                elif sensor.config.name == "gps":
+                    ret[sensor.config.name] = {
+                        "has_fix": sensor.has_fix,
+                        "latitude": sensor.latitude,
+                        "longitude": sensor.longitude,
+                        "altitude": sensor.altitude,
+                        "t": isotime(sensor.last_update),
+                    }
+                else:
+                    print(f'Unknown sensor type: {sensor.config.name}')
 
             await ws.send(json.dumps(ret))
 
@@ -66,5 +89,23 @@ def build_app(registry):
                 out["value"] = value
         
         return json.dumps(ret), 200, {"Content-Type": "application/json"}
-    
+
+    @app.patch("/api/config")
+    async def config_set(req):
+        values = req.json
+
+        if not isinstance(values, dict):
+            raise HTTPException(400)
+
+        try:
+            registry.config.set(values)
+            return "{}", 201, {"Content-Type": "application/json"}
+
+        except ValueError as exc:
+            return (
+                json.dumps({"error": str(exc)}),
+                400,
+                {"Content-Type": "application/json"},
+            )
+
     return app

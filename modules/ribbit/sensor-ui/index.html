@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Ribbit Frog installer</title>
+    <title>Frog Sensor Status</title>
     <meta name="viewport" content="width=device-width" />
     <meta name="color-scheme" content="dark light" />
     <style>
@@ -184,119 +184,100 @@
   
         // Get sensor data
         const sensorSocket = getSocket('/api/sensors');
-        prevData = {};
         sensorSocket.addEventListener('message', ev => {
-            const currentTime = new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', hour12: true, hour: 'numeric', minute: 'numeric', second: 'numeric' }) + ' PT';
             const data = JSON.parse(ev.data);
 
             // Update barometer data
-            updateData('Barometer', getBarometerData(data, currentTime));
+            updateData('Barometer', getBarometerData(data));
 
             // Update CO2 data
-            updateData('CO2', getCO2Data(data, currentTime));
+            updateData('CO2', getCO2Data(data));
 
             // Update GPS data
-            updateData('GPS', getGPSData(data, currentTime));
+            updateData('GPS', getGPSData(data));
 
             prevData = data;
         });
 
         // Get data from each of the sensors
         // Return format is { status: true/false, data: { key: value }, lastUpdated: 'time' }
-        const getCO2Data = (data, currentTime) => {
+        const getCO2Data = (data) => {
             const defined = (co2Data) => {
                 return co2Data !== undefined && 
-                    co2Data.length === 3 &&
-                    co2Data[0].concentration !== null && 
-                    co2Data[1].temperature !== null && 
-                    co2Data[2].humidity !== null;
-            };
-            const same = (co2Data1, co2Data2) => {
-                return co2Data1[0].concentration === co2Data2[0].concentration &&
-                    co2Data1[1].temperature === co2Data2[1].temperature &&
-                    co2Data1[2].humidity === co2Data2[2].humidity;
+                    co2Data.co2 !== null &&
+                    co2Data.temperature !== null &&
+                    co2Data.humidity !== null;
             };
 
-            const co2Defined = defined(data.scd30)
-            const prevCo2Defined = defined(prevData.scd30)
-            const co2Updated = co2Defined && 
-                (!prevCo2Defined || !same(data.scd30, prevData.scd30));
+            ret = {
+                status: defined(data.scd30),
+                data: {
+                    'CO2': '',
+                    'Temperature': '',
+                    'Humidity': ''
+                },
+                lastUpdated: data.scd30.t,
+            };
 
-            if (co2Defined && co2Updated) {
-                co2Data = {
-                    'CO2': data.scd30[0].concentration + ' ppm',
-                    'Temperature': data.scd30[1].temperature + ' °C',
-                    'Humidity': data.scd30[2].humidity + ' %'
-                }
+            if (ret.status) {
+                ret.data['CO2'] = data.scd30.co2.toFixed(2) + ' ppm';
+                ret.data['Temperature'] = data.scd30.temperature.toFixed(2) + ' °C';
+                ret.data['Humidity'] = data.scd30.humidity.toFixed(2) + ' %';
+            }
 
-                return {status: true, data: co2Data, lastUpdated: currentTime};
-            } else if (!co2Defined) {
-                return {status: false, data: null, lastUpdated: null};
-            } else {
-                return {status: true, data: null, lastUpdated: null};
-            } 
+            return ret;
         };
 
-        const getBarometerData = (data, currentTime) => {
+        const getBarometerData = (data) => {
             const defined = (barometerData) => {
                 return barometerData !== undefined && 
-                    barometerData.length === 2 &&
-                    barometerData[1].pressure !== null && 
-                    barometerData[0].temperature !== null;
-            };
-            const same = (barometerData1, barometerData2) => {
-                return barometerData1[1].pressure === barometerData2[1].pressure &&
-                    barometerData1[0].temperature === barometerData2[0].temperature;
+                    barometerData.pressure !== null &&
+                    barometerData.temperature !== null;
             };
 
-            const barometerDefined = defined(data.dps310)
-            const prevBarometerDefined = defined(prevData.dps310)
-            const barometerUpdated = barometerDefined && 
-                (!prevBarometerDefined || !same(data.dps310, prevData.dps310));
+            ret = {
+                status: defined(data.dps310),
+                data: {
+                    'Pressure': '',
+                    'Temperature': ''
+                },
+                lastUpdated: data.dps310.t,
+            };
 
-            if (barometerDefined && barometerUpdated) {
-                barometerData = {
-                    'Pressure': data.dps310[1].pressure + ' hPa',
-                    'Temperature': data.dps310[0].temperature + ' °C'
-                };
-                return {status: true, data: barometerData, lastUpdated: currentTime};
-            } else if (!barometerDefined) {
-                return {status: false, data: null, lastUpdated: null};
-            } else {
-                return {status: true, data: null, lastUpdated: null};
+            if (ret.status) {
+                ret.data['Pressure'] = data.dps310.pressure.toFixed(2) + ' hPa';
+                ret.data['Temperature'] = data.dps310.temperature.toFixed(2) + ' °C';
             }
+
+            return ret;
         }
 
-        const getGPSData = (data, currentTime) => {
+        const getGPSData = (data) => {
             const defined = (gpsData) => {
                 return gpsData !== undefined && 
                     gpsData.latitude !== null && 
                     gpsData.longitude !== null && 
-                    gpsData.gnss !== null && 
-                    gpsData.gnss.has_fix !== null;
-            };
-            const same = (gpsData1, gpsData2) => {
-                return gpsData1.latitude === gpsData2.latitude && 
-                    gpsData1.longitude === gpsData2.longitude;
+                    gpsData.has_fix !== null;
             };
 
-            const gpsDefined = defined(data.gps)
-            const prevGPSDefined = defined(prevData.gps)
-            const gpsUpdated = gpsDefined && (!prevGPSDefined || same(data.gps, prevData.gps))
+            ret = {
+                status: defined(data.gps),
+                data: {
+                    'Latitude': '',
+                    'Longitude': '',
+                    'Altitude': '',
+                    'GNSS': data.gps.has_fix ? 'Fix' : 'No Fix'
+                },
+                lastUpdated: data.gps.t,
+            };
 
-            if (gpsDefined && gpsUpdated) {
-                gpsData = {
-                    'Latitude': `${data.gps.latitude.toFixed(2)}°`,
-                    'Longitude': `${data.gps.longitude.toFixed(2)}°`,
-                    'GNSS': `${data.gps.gnss.has_fix ? 'Fix' : 'No Fix'}`,
-                };
-                return {status: true, data: gpsData, lastUpdated: currentTime};
-            } else if (!gpsDefined) {
-                gpsData = (data.gps !== null && !data.gps.has_fix) ? {'No GPS Fix': ''} : null;
-                return {status: false, data: gpsData, lastUpdated: null};
-            } else {
-                return {status: true, data: null, lastUpdated: null};
+            if (ret.status && data.gps.has_fix) {
+                ret.data.Latitude = `${data.gps.latitude.toFixed(2)}°`;
+                ret.data.Longitude = `${data.gps.longitude.toFixed(2)}°`;
+                ret.data.Altitude = `${data.gps.altitude.toFixed(2)} m`;
             }
+
+            return ret;
         }
 
         const registryPath = getRoute('/api/registry');
