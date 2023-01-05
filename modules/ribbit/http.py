@@ -47,6 +47,7 @@ def build_app(registry):
     @with_websocket
     async def sensor_status(request, ws):
         while True:
+            await asyncio.sleep_ms(1000)
             ret = collections.OrderedDict()
             for sensor in registry.sensors.values():
                 if sensor.config.name == "dps310":
