@@ -2,4 +2,3 @@
 /__version__.py
 __pycache__/
 .vscode/
-modules/ribbit/_static.py
