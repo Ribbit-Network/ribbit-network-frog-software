@@ -2,6 +2,8 @@
 	path = vendor/micropython
 	url = https://github.com/damz/micropython.git
 	branch = pr/mbedtls
+	ignore = dirty
 [submodule "vendor/microdot"]
 	path = vendor/microdot
 	url = https://github.com/miguelgrinberg/microdot.git
+	ignore = dirty
