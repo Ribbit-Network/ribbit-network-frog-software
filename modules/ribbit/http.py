@@ -75,7 +75,7 @@ def build_app(registry):
             await ws.send(json.dumps(ret))
 
     @app.route("/api/config")
-    def registry_list(request):
+    def config_get(request):
         ret = collections.OrderedDict()
         for k in registry.config.keys():
             domain, value, key_info = registry.config.get(k)
