@@ -280,7 +280,7 @@
             return ret;
         }
 
-        const registryPath = getRoute('/api/registry');
+        const registryPath = getRoute('/api/config');
         fetch(registryPath)
         .then(response => response.json())
         .then(data => {

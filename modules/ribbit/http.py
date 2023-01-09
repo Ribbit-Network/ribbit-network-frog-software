@@ -71,13 +71,10 @@ def build_app(registry):
                         "altitude": sensor.altitude,
                         "t": isotime(sensor.last_update),
                     }
-                else:
-                    print(f'Unknown sensor type: {sensor.config.name}')
-                    raise('Unknown sensor type')
 
             await ws.send(json.dumps(ret))
 
-    @app.route("/api/registry")
+    @app.route("/api/config")
     def registry_list(request):
         ret = collections.OrderedDict()
         for k in registry.config.keys():
