@@ -201,7 +201,8 @@ class ConfigRegistry:
         self._keys = collections.OrderedDict()
         for key in keys:
             self._keys[key.name] = key
-            key.default = key.hydrate(key.default)
+            if key.default is not None:
+                key.default = key.hydrate(key.default)
 
         self._stored = stored
         if in_simulator:
