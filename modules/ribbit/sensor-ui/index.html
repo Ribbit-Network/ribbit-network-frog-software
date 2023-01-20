@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Frog Sensor Status</title>
+    <meta name="viewport" content="width=device-width" />
+    <meta name="color-scheme" content="dark light" />
+    <style>
+        body {
+            font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI",
+                Roboto, Ubuntu, sans-serif;
+            color: white;
+            padding: 0;
+            margin: 0;
+            line-height: 1.4;
+
+            background: #556d55;
+            margin: 2em;
+        }
+        .logo {
+            width: 300px;
+            display: block;
+            margin: 0 auto;
+        }
+        .content {
+            margin: 0 auto;
+            padding: 12px;
+        }
+        h1 {
+            text-align: center;
+        }
+        .sensors {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .sensor {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 250px;
+            width: 200px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 5px;
+            padding: 20px;
+            margin: 10px;
+        }
+        .sensor-header {
+            display: flex;
+            flex-direction: row;
+            justify-content: start;
+        }
+        .sensor-title {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .sensor-data {
+            font-size: 1em;
+        }
+        .sensor-status {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ff0000;
+            margin: 8px 10px 0 10px;
+        }
+        .blink {
+            animation: blink 2s linear infinite;
+        }
+        @keyframes blink {
+            0% {
+                opacity: 0.1;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0.1;
+            }
+        }
+        .sensor-last-updated {
+            font-size: 0.8em;
+        }
+        h2 {
+            margin-top: 2em;
+        }
+        .other-info-wrapper {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .other-info {
+            background: rgba(0, 0, 0, 0.1);
+            min-width: 300px;
+            min-height: 100px;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 10px;
+        }
+        #other-info-content {
+            margin-top: 20px;
+        }
+
+    </style>
+  </head>
+  <body>
+    <div class="content">
+      <img src="./logo.png" alt="" class="logo"/>
+      <h1>Frog Sensor Status</h1>
+      <div class="sensors">
+        <div class="sensor" id="Barometer">
+          <div class="sensor-header">
+            <div class="sensor-title">Barometer</div>
+            <div class="sensor-status"></div>
+          </div>
+          <div class="sensor-data"></div>
+          <div class="sensor-last-updated"></div>
+        </div>
+        <div class="sensor" id="CO2">
+          <div class="sensor-header">
+            <div class="sensor-title">CO2</div>
+            <div class="sensor-status"></div>
+          </div>
+          <div class="sensor-data"></div>
+          <div class="sensor-last-updated"></div>
+        </div>
+        <div class="sensor" id="GPS">
+          <div class="sensor-header">
+            <div class="sensor-title">GPS</div>
+            <div class="sensor-status"></div>
+          </div>
+          <div class="sensor-data"></div>
+          <div class="sensor-last-updated"></div>
+        </div>
+      </div>
+      <div class="other-info-wrapper">
+        <div class="other-info">
+            <div class="sensor-title">Other Info</div>
+            <div id="other-info-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+        const getSocket = (path) => {
+          const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+          return new WebSocket(`${protocol}//${location.host}${path}`);
+        };
+
+        const getRoute = (path) => {
+          const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
+          return `${protocol}//${location.host}${path}`;
+        };
+
+        const updateData = (sensor, data) => {
+          const sensorElement = document.getElementById(sensor);
+          const sensorStatus = sensorElement.querySelector('.sensor-status');
+          const sensorData = sensorElement.querySelector('.sensor-data');
+          const sensorLastUpdated = sensorElement.querySelector('.sensor-last-updated');
+
+          // Update sensor status
+          if (data.status) {
+            sensorStatus.style.background = '#00ff00';
+            sensorStatus.classList.add('blink');
+          } else {
+            sensorStatus.style.background = '#ff0000';
+            sensorStatus.classList.remove('blink');
+          }
+
+          // Update sensor data
+          if (data.data !== null) {
+            sensorData.innerHTML = Object.entries(data.data).map(([key, value]) => (value !== '') ? `<b>${key}</b>: ${value}<br/>` : `<b>${key}</b><br/>`).join('');
+          }
+
+          // Update sensor last updated time
+          if (data.lastUpdated !== null) {
+            sensorLastUpdated.innerHTML = `<b>Last updated</b>: ${data.lastUpdated}`;
+          }
+        };
+  
+        // Get sensor data
+        const sensorSocket = getSocket('/api/sensors');
+        sensorSocket.addEventListener('message', ev => {
+            const data = JSON.parse(ev.data);
+
+            // Update barometer data
+            updateData('Barometer', getBarometerData(data));
+
+            // Update CO2 data
+            updateData('CO2', getCO2Data(data));
+
+            // Update GPS data
+            updateData('GPS', getGPSData(data));
+
+            prevData = data;
+        });
+
+        // Get data from each of the sensors
+        // Return format is { status: true/false, data: { key: value }, lastUpdated: 'time' }
+        const getCO2Data = (data) => {
+            const defined = (co2Data) => {
+                return co2Data !== undefined && 
+                    co2Data.co2 !== null &&
+                    co2Data.temperature !== null &&
+                    co2Data.humidity !== null;
+            };
+
+            ret = {
+                status: defined(data.scd30),
+                data: {
+                    'CO2': '',
+                    'Temperature': '',
+                    'Humidity': ''
+                },
+                lastUpdated: data.scd30.t,
+            };
+
+            if (ret.status) {
+                ret.data['CO2'] = data.scd30.co2.toFixed(2) + ' ppm';
+                ret.data['Temperature'] = data.scd30.temperature.toFixed(2) + ' °C';
+                ret.data['Humidity'] = data.scd30.humidity.toFixed(2) + ' %';
+            }
+
+            return ret;
+        };
+
+        const getBarometerData = (data) => {
+            const defined = (barometerData) => {
+                return barometerData !== undefined && 
+                    barometerData.pressure !== null &&
+                    barometerData.temperature !== null;
+            };
+
+            ret = {
+                status: defined(data.dps310),
+                data: {
+                    'Pressure': '',
+                    'Temperature': ''
+                },
+                lastUpdated: data.dps310.t,
+            };
+
+            if (ret.status) {
+                ret.data['Pressure'] = data.dps310.pressure.toFixed(2) + ' hPa';
+                ret.data['Temperature'] = data.dps310.temperature.toFixed(2) + ' °C';
+            }
+
+            return ret;
+        }
+
+        const getGPSData = (data) => {
+            const defined = (gpsData) => {
+                return gpsData !== undefined && 
+                    gpsData.latitude !== null && 
+                    gpsData.longitude !== null && 
+                    gpsData.has_fix !== null;
+            };
+
+            ret = {
+                status: defined(data.gps),
+                data: {
+                    'Latitude': '',
+                    'Longitude': '',
+                    'Altitude': '',
+                    'GNSS': data.gps.has_fix ? 'Fix' : 'No Fix'
+                },
+                lastUpdated: data.gps.t,
+            };
+
+            if (ret.status && data.gps.has_fix) {
+                ret.data.Latitude = `${data.gps.latitude.toFixed(2)}°`;
+                ret.data.Longitude = `${data.gps.longitude.toFixed(2)}°`;
+                ret.data.Altitude = `${data.gps.altitude.toFixed(2)} m`;
+            }
+
+            return ret;
+        }
+
+        const registryPath = getRoute('/api/config');
+        fetch(registryPath)
+        .then(response => response.json())
+        .then(data => {
+            ret = {}
+            if (data['wifi.ssid'] !== null) {
+                ret['WiFi SSID'] = data['wifi.ssid']['value']
+            }
+            if (data['golioth.host'] !== null) {
+                ret['Golioth Host'] = data['golioth.host']['value']
+            }
+            if (data['golioth.user'] !== null) {
+                ret['Golioth User'] = data['golioth.user']['value']
+            }
+
+            otherInfoContent = document.getElementById('other-info-content');
+            otherInfoContent.innerHTML = Object.entries(ret).map(([key, value]) => `<b>${key}</b>: ${value}<br/>`).join('');
+        });
+      </script>
+  </body>
+</html>

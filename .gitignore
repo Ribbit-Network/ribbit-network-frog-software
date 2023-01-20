@@ -1,3 +1,4 @@
 /firmware/
 /__version__.py
 __pycache__/
+.vscode/
