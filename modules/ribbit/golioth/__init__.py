@@ -59,12 +59,12 @@ CONFIG_KEYS = [
 
 
 class Golioth:
-    def __init__(self, config, commands=None, in_simulator=False):
+    def __init__(self, config, ota_manager, commands=None, in_simulator=False):
         self._logger = logging.getLogger(__name__)
         self._config = config
         self._commands = commands or {}
         self._coap = None
-        self._ota_manager = _ota.OTAManager()
+        self._ota_manager = ota_manager
         self._in_simulator = in_simulator
         self._ota_enabled = False
 
