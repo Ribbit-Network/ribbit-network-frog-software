@@ -751,16 +751,25 @@ class BlockReader:
             OPTION_BLOCK2,
             block_option_payload,
         )
-        response = await self._client.request(packet)
 
-        options = [
-            option for option in response.options if option.number == OPTION_BLOCK2
-        ]
-        if (
-            len(options) != 1
-            or (decode_uint_option(options[0].buffer) >> 4) != self._block_num
-        ):
-            raise RuntimeError("unexpected block option in server response")
+        num_retries = 1
+        for i in range(num_retries+1):
+            response = await self._client.request(packet)
+            options = [
+                option for option in response.options if option.number == OPTION_BLOCK2
+            ]
+            if (
+                len(options) != 1
+                or (decode_uint_option(options[0].buffer) >> 4) != self._block_num
+            ):
+                # The server has unexpectedly sent a OPTION_BLOCK2 packet with an
+                # unexpected header. This is possibly due to a very slow connection on
+                # the device causing the server to expire the update package.
+                # In this case, try rerquesting the packet once more before
+                # throwing an exception in case the server did tiemout.
+                # See https://github.com/Ribbit-Network/ribbit-network-frog-software/issues/33
+                if i == num_retries:
+                    raise RuntimeError("unexpected block option in server response")
 
         if len(buf) < len(response.payload):
             raise ValueError("buffer too small")
