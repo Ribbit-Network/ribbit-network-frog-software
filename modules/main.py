@@ -73,6 +73,7 @@ async def _main():
     import ribbit.sensors.scd30 as _scd30
     import ribbit.time_manager as _time
     import ribbit.utils.i2c as _i2c
+    import ribbit.utils.ota as _ota
 
     class Registry:
         pass
@@ -143,8 +144,11 @@ async def _main():
         registry.network = _network.NetworkManager(registry.config)
         registry.time_manager = _time.TimeManager(registry.network)
 
+    registry.ota_manager = _ota.OTAManager(in_simulator=in_simulator)
+
     registry.golioth = _golioth.Golioth(
         registry.config,
+        ota_manager=registry.ota_manager,
         in_simulator=in_simulator,
     )
 
@@ -201,6 +205,8 @@ async def _main():
 
     if not in_simulator:
         _setup_improv(registry)
+
+    registry.ota_manager.successful_boot()
 
     app = _http.build_app(registry)
     asyncio.create_task(

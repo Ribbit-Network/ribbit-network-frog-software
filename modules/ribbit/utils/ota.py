@@ -11,13 +11,23 @@ class OTAUpdate:
 
 
 class OTAManager:
-    def __init__(self):
+    def __init__(self, in_simulator=False):
         self._logger = logging.getLogger(__name__)
+        self._in_simulator = in_simulator
 
     def successful_boot(self):
+        if self._in_simulator:
+            self._logger.info("Running in simulator: skipping successful boot")
+            return
+
+        import esp32
         esp32.Partition.mark_app_valid_cancel_rollback()
 
     async def do_ota_update(self, u):
+        if self._in_simulator:
+            self._logger.info("Running in simulator: skipping update")
+            return
+
         import esp32
 
         self._logger.info("Starting OTA update")

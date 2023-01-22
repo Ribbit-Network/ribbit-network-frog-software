@@ -10,7 +10,7 @@ class Heartbeat:
 
         if not self._in_simulator:
             self._setup_pixel()
-        asyncio.create_task(self._loop())
+            asyncio.create_task(self._loop())
 
     def _setup_pixel(self):
         import neopixel
