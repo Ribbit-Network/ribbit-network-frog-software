@@ -60,7 +60,12 @@ class OTAManager:
 
             n = 0
             while n < len(dest_buf):
-                sz = await u.reader.readinto(dest_buf[n:])
+                try:
+                    sz = await u.reader.readinto(dest_buf[n:])
+                except:
+                    self._logger.warning("Exception processing coap block id %d. Trying again.", block_id)
+                    # Attempt to read this block again
+                    continue
                 if sz == 0:
                     break
                 n += sz
