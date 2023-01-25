@@ -752,9 +752,10 @@ class BlockReader:
             block_option_payload,
         )
 
-        num_retries = 1
-        for i in range(num_retries+1):
+        num_retries = 0
+        while True:
             response = await self._client.request(packet)
+
             options = [
                 option for option in response.options if option.number == OPTION_BLOCK2
             ]
@@ -768,9 +769,13 @@ class BlockReader:
                 # In this case, try rerquesting the packet once more before
                 # throwing an exception in case the server did tiemout.
                 # See https://github.com/Ribbit-Network/ribbit-network-frog-software/issues/33
-                if i == num_retries:
+                if num_retries == 1:
                     raise RuntimeError("unexpected block option in server response")
+                num_retries += 1
+                continue
 
+            break
+                    
         if len(buf) < len(response.payload):
             raise ValueError("buffer too small")
 
