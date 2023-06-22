@@ -10,12 +10,35 @@ This respository contains the software for the Frog Sensor.
 
 The current Ribbit Network Frog software is being developed for the [Frog Sensor Version 4.](https://github.com/Ribbit-Network/ribbit-network-frog-hardware)
 
+## Gettting Started / Dependancies
+To get started, you'll need to install a few dependancies first.
+
+### ESP IDF
+
+We currently build and test with ESP-IDF v4.4.1.
+
+```shell
+mkdir -p ~/esp
+cd ~/esp
+git clone --recursive https://github.com/espressif/esp-idf.git
+cd esp-idf
+git checkout v4.4.1
+git submodule update --init --recursive
+./install.sh all
+```
+
 ## Building the Software
 
 Fetch the submodules:
 
 ```shell
 $ git submodule update --jobs 32 --init --recursive
+```
+
+Set up ESP-IDF:
+
+```shell
+$ source ~/esp/esp-idf/export.sh
 ```
 
 Run tests:
