@@ -47,7 +47,7 @@ class SensorAggregator:
                 elif sensor.config.name == "memory":
                     ret[sensor.config.name] = {
                         "allocated": sensor.allocated,
-                        "total": sensor.total,
+                        "free": sensor.free,
                     }
 
 
