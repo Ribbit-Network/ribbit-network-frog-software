@@ -19,6 +19,9 @@ class Board(_base.PollingSensor):
     def __init__(self, registry, id, interval=24 * 3600):
         super().__init__(registry, id, interval)
 
+        self.allocated = None
+        self.free = None
+
     def export(self):
         import __version__
 
@@ -48,7 +51,7 @@ class Memory(_base.PollingSensor):
 
     def export(self):
         gc.collect()
-        self.alloc, self.free = gc.mem_alloc(), gc.mem_free()
+        self.allocated, self.free = gc.mem_alloc(), gc.mem_free()
         return {
             "t": isotime(time.time()),
             "@type": "ribbitnetwork.sensor.DeviceMemory",
