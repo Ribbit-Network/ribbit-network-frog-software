@@ -44,6 +44,11 @@ class SensorAggregator:
                         "altitude": sensor.altitude,
                         "t": isotime(sensor.last_update),
                     }
+                elif sensor.config.name == "memory":
+                    ret[sensor.config.name] = {
+                        "allocated": sensor.allocated,
+                        "total": sensor.total,
+                    }
 
 
             self._logger.info("Aggregated Data: %s", json.dumps(ret))
