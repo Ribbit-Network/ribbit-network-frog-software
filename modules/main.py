@@ -140,10 +140,21 @@ async def _main():
         ),
     )
 
+    if not in_simulator:
+        registry.i2c_bus = _i2c.LockableI2CBus(
+            0, scl=machine.Pin(4), sda=machine.Pin(3), freq=50000
+        )
+
+        # Turn on the I2C power:
+        machine.Pin(7, mode=machine.Pin.OUT, value=1, hold=True)
+
+    else:
+        registry.i2c_bus = None
+
     registry.config = _config.ConfigRegistry(config_schema, in_simulator=in_simulator)
 
     if not in_simulator:
-        registry.network = _network.NetworkManager(registry.config)
+        registry.network = _network.NetworkManager(registry.config, registry.i2c_bus)
         registry.time_manager = _time.TimeManager(registry.network)
 
     registry.ota_manager = _ota.OTAManager(in_simulator=in_simulator)
@@ -176,14 +187,6 @@ async def _main():
                     pass
 
     registry.sensors_output = Output()
-
-    if not in_simulator:
-        registry.i2c_bus = _i2c.LockableI2CBus(
-            0, scl=machine.Pin(4), sda=machine.Pin(3), freq=50000
-        )
-
-        # Turn on the I2C power:
-        machine.Pin(7, mode=machine.Pin.OUT, value=1, hold=True)
 
     _, sensors, _ = registry.config.get("sensors")
 
