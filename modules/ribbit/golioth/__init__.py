@@ -3,6 +3,7 @@ import logging
 import time
 from micropython import const
 import uasyncio as asyncio
+import __version__
 
 import ribbit.config as _config
 import ribbit.coap as _coap
@@ -35,6 +36,7 @@ CONFIG_GOLIOTH_PORT = const("golioth.port")
 CONFIG_GOLIOTH_USER = const("golioth.user")
 CONFIG_GOLIOTH_PASSWORD = const("golioth.password")
 CONFIG_GOLIOTH_OTA_ENABLED = const("golioth.ota.enabled")
+CONFIG_GOLIOTH_FIRMWARE_VERSION = const("golioth.firmware.version")
 
 _CONFIG_KEYS = [
     CONFIG_GOLIOTH_ENABLED,
@@ -43,6 +45,7 @@ _CONFIG_KEYS = [
     CONFIG_GOLIOTH_USER,
     CONFIG_GOLIOTH_PASSWORD,
     CONFIG_GOLIOTH_OTA_ENABLED,
+    CONFIG_GOLIOTH_FIRMWARE_VERSION,
 ]
 
 CONFIG_KEYS = [
@@ -55,6 +58,7 @@ CONFIG_KEYS = [
     _config.String(name=CONFIG_GOLIOTH_USER, default=None),
     _config.String(name=CONFIG_GOLIOTH_PASSWORD, default=None, protected=True),
     _config.Boolean(name=CONFIG_GOLIOTH_OTA_ENABLED, default=True),
+    _config.String(name=CONFIG_GOLIOTH_FIRMWARE_VERSION, default=__version__.version),
 ]
 
 
@@ -183,8 +187,6 @@ class Golioth:
     async def _send_firmware_report(
         self, client, package="main", state=0, reason=0, target_version=None
     ):
-        import __version__
-
         req = {
             "state": state,
             "reason": reason,
@@ -235,8 +237,6 @@ class Golioth:
         machine.reset()
 
     async def _on_golioth_firmware(self, client, packet):
-        import __version__
-
         req = json.loads(packet.payload)
         self._logger.info("Firmware payload received: %s", req)
 

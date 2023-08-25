@@ -294,6 +294,9 @@
             if (data['golioth.user'] !== null) {
                 ret['Golioth User'] = data['golioth.user']['value']
             }
+            if (data['golioth.firmware.version'] !== null) {
+                ret['Golioth Firmware Version'] = data['golioth.firmware.version']['value']
+            }
 
             otherInfoContent = document.getElementById('other-info-content');
             otherInfoContent.innerHTML = Object.entries(ret).map(([key, value]) => `<b>${key}</b>: ${value}<br/>`).join('');
