@@ -71,6 +71,10 @@ def build_app(registry):
                         "altitude": sensor.altitude,
                         "t": isotime(sensor.last_update),
                     }
+                elif sensor.config.name == "board":
+                    ret[sensor.config.name] = {
+                        "version": sensor.export()['firmware']['version'],
+                    }
 
             await ws.send(json.dumps(ret))
 
