@@ -7,18 +7,23 @@ BUILD_DIR := ${PORT_DIR}/build-${BOARD}
 DEVICE := /dev/ttyACM*
 
 .PHONY: build
-build: ui
+build: ui ${MP_DIR}/mpy-cross/build/mpy-cross
 	rm -f ${BUILD_DIR}/frozen_content.c
 	ln -sfn ${CURDIR}/board ${PORT_DIR}/boards/ribbit
 	make -C ${PORT_DIR} BOARD=${BOARD} FROZEN_MANIFEST=${CURDIR}/manifest.py
 	mkdir -p ./firmware
 	cp ${BUILD_DIR}/bootloader/bootloader.bin ${BUILD_DIR}/partition_table/partition-table.bin ${BUILD_DIR}/ota_data_initial.bin ${BUILD_DIR}/micropython.bin ./firmware
 
+# Workaround: mpy-cross fails to build with FROZEN_MANIFEST set
+# Remove when that is fixed in MicroPython
+${MP_DIR}/mpy-cross/build/mpy-cross:
+	make -C ${MP_DIR}/mpy-cross
+
 .PHONY: ui
 ui:
 	python3 ./tools/generate_static.py
 
-${UNIX_DIR}/build-standard/micropython:
+${UNIX_DIR}/build-standard/micropython: ${MP_DIR}/mpy-cross/build/mpy-cross
 	make -C ${MP_DIR}/ports/unix -j FROZEN_MANIFEST=${CURDIR}/manifest-unix.py
 
 .PHONY: test

@@ -29,6 +29,7 @@ jobs:
 
     - name: Build
       run: |
+          rm -rf ./vendor/micropython/mpy-cross/build  # Workaround build failure
           docker run -t -u "$UID:$GID" -e "HOME=/app" -v "${GITHUB_WORKSPACE}:/app" -w "/app" espressif/idf:v5.1.2 make
       shell: bash
 
