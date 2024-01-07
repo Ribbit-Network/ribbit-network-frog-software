@@ -1,5 +1,5 @@
 import time
-import uasyncio as asyncio
+import asyncio
 from ustruct import unpack
 
 from micropython import const

@@ -1,6 +1,6 @@
 import logging
 
-import uasyncio as asyncio
+import asyncio
 
 
 class BaseSensor:

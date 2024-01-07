@@ -1,4 +1,4 @@
-import uasyncio as asyncio
+import asyncio
 import sys
 import micropython
 from micropython import const

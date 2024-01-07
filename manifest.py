@@ -2,7 +2,7 @@ import datetime
 import subprocess
 import os
 
-include("$(MPY_DIR)/extmod/uasyncio")
+include("$(MPY_DIR)/extmod/asyncio")
 freeze("$(PORT_DIR)/modules")
 require("neopixel")
 require("ntptime")

@@ -1,6 +1,6 @@
 import time
 import logging
-import uasyncio as asyncio
+import asyncio
 
 
 class Heartbeat:
