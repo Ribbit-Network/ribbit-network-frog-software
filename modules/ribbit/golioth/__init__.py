@@ -86,15 +86,18 @@ class Golioth:
 
                 if enabled:
                     self._logger.info("Starting Golioth integration")
+
+                    import ssl
+                    ctx = ssl.SSLContext(
+                        ssl.PROTOCOL_DTLS_CLIENT
+                    )
+                    ctx.set_ciphers(["TLS-PSK-WITH-AES-128-CBC-SHA256"])
+                    ctx.set_psk(user, password)
+
                     self._coap = _coap.Coap(
                         host=host,
                         port=port,
-                        ssl=True,
-                        ssl_options={
-                            "server_hostname": host,
-                            "psk_identity": user,
-                            "psk_key": password,
-                        },
+                        ssl=ctx,
                     )
                     self._coap.on_connect(self._on_connect)
                     asyncio.create_task(self._coap.connect_loop())
