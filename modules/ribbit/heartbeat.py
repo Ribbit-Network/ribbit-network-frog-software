@@ -25,10 +25,10 @@ class Heartbeat:
         warn_interval = 300
 
         on = True
-        px = self._pixel
 
         while True:
             if not self._in_simulator:
+                px = self._pixel
                 if on:
                     px[0] = (4, 2, 0)
                 else:
