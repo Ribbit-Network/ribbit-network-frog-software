@@ -443,12 +443,17 @@ class Coap:
             sock.bind(socket.getaddrinfo("0.0.0.0", 0)[0][-1])
             sock.connect(self._addr)
 
-            if self._ssl:
-                sock = ssl.wrap_socket(
+            if self._ssl is not False:
+                ctx = self._ssl
+                if ctx is True:
+                    ctx = ssl.SSLContext(
+                        ssl.PROTOCOL_DTLS_CLIENT
+                    )
+
+                sock = ctx.wrap_socket(
                     sock,
-                    dtls=True,
-                    do_handshake=False,
-                    **self._ssl_opts,
+                    do_handshake_on_connect=True,
+                    server_hostname=self._host,
                 )
 
             self._sock = _DTLSocket(sock)
