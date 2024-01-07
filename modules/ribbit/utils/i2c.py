@@ -1,5 +1,5 @@
 import machine
-import uasyncio as asyncio
+import asyncio
 
 
 class LockableI2CBus:

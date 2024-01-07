@@ -1,5 +1,5 @@
 import json
-import uasyncio as asyncio
+import asyncio
 import collections
 
 from microdot_asyncio import Microdot, Request, Response, HTTPException

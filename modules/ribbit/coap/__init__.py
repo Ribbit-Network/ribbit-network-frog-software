@@ -4,8 +4,8 @@ import socket
 import random
 import os
 import ssl
-import uasyncio as asyncio
-import uasyncio.core as _asyncio_core
+import asyncio
+import asyncio.core as _asyncio_core
 
 from micropython import const
 

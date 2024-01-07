@@ -1,6 +1,6 @@
 import time
 
-import uasyncio as asyncio
+import asyncio
 from micropython import const
 import ribbit.config as _config
 import ribbit.time_manager as _time

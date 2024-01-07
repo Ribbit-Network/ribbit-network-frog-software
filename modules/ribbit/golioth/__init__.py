@@ -2,7 +2,7 @@ import json
 import logging
 import time
 from micropython import const
-import uasyncio as asyncio
+import asyncio
 
 import ribbit.config as _config
 import ribbit.coap as _coap

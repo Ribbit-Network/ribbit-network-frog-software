@@ -2,7 +2,7 @@ import logging
 import time
 
 import machine
-import uasyncio as asyncio
+import asyncio
 from micropython import const
 from ribbit.utils.time import isotime as _isotime
 

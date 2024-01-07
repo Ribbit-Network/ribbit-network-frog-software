@@ -1,7 +1,7 @@
 import os
 import collections
 import errno
-import uasyncio as asyncio
+import asyncio
 import ujson as json
 from micropython import const
 import logging
