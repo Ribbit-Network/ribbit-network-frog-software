@@ -56,6 +56,6 @@ class Memory(_base.PollingSensor):
             "t": isotime(time.time()),
             "@type": "ribbitnetwork.sensor.DeviceMemory",
             "sensor_model": "frog",
-            "allocated": allocated,
-            "total": alloc + free,
+            "allocated": self.allocated,
+            "total": self.allocated + self.free,
         }
