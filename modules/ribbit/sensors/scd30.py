@@ -207,6 +207,28 @@ class SCD30(_base.PollingSensor):
         self.temperature = temperature
         self.humidity = humidity
 
+    def metadata(self):
+        return {
+            "co2": {
+                "label": "CO2",
+                "class": "carbon_dioxide",
+                "unit_of_measurement": "ppm",
+                "suggested_display_precision": 1,
+            },
+            "temperature": {
+                "label": "Temperature",
+                "class": "temperature",
+                "unit_of_measurement": "°C",
+                "suggested_display_precision": 1,
+            },
+            "humidity": {
+                "label": "Humidity",
+                "class": "humidity",
+                "unit_of_measurement": "%",
+                "suggested_display_precision": 0,
+            },
+        }
+
     def export(self):
         return {
             "t": isotime(self.last_update),

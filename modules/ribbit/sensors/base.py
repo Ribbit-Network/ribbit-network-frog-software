@@ -9,6 +9,9 @@ class BaseSensor:
         self._sensor_id = id
         self._logger = logging.getLogger("sensor." + self.config.name)
 
+    def metadata(self):
+        return {}
+
     def export(self):
         return {}
 
@@ -22,7 +25,7 @@ class PollingSensor(BaseSensor):
         while True:
             try:
                 await self.read_once()
-                await self._output.write(self.export())
+                await self._output.write(self, self.export())
             except Exception as exc:
                 self._logger.exc(exc, "Exception in polling loop")
 

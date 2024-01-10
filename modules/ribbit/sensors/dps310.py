@@ -183,6 +183,22 @@ class DPS310(_base.PollingSensor):
 
         self.last_update = time.time()
 
+    def metadata(self):
+        return {
+            "pressure": {
+                "label": "Pressure",
+                "class": "pressure",
+                "unit_of_measurement": "hPa",
+                "suggested_display_precision": 1,
+            },
+            "temperature": {
+                "label": "Temperature",
+                "class": "temperature",
+                "unit_of_measurement": "°C",
+                "suggested_display_precision": 1,
+            },
+        }
+
     def export(self):
         return {
             "t": isotime(self.last_update),
