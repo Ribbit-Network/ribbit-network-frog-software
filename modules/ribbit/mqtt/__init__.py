@@ -239,7 +239,6 @@ class MQTT:
         if self._sock is not None:
             for task in self._tasks:
                 task.cancel()
-                await task
 
             self._tasks = None
 
@@ -595,7 +594,6 @@ class MQTT:
             if self._sock is not None:
                 for task in self._tasks:
                     task.cancel()
-                    await task
 
                 self._tasks = None
 
