@@ -80,6 +80,7 @@ async def _main():
         pass
 
     registry = Registry()
+    registry.in_simulator = in_simulator
 
     _aggregate.SensorAggregator(registry)
     _heartbeat.Heartbeat(in_simulator)
@@ -144,7 +145,8 @@ async def _main():
 
     if not in_simulator:
         registry.network = _network.NetworkManager(registry.config)
-        registry.time_manager = _time.TimeManager(registry.network)
+
+    registry.time_manager = _time.TimeManager(registry)
 
     registry.ota_manager = _ota.OTAManager(in_simulator=in_simulator)
 
