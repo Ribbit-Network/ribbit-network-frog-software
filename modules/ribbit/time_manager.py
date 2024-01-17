@@ -9,16 +9,18 @@ from ribbit.utils.time import isotime as _isotime
 TIMESOURCE_UNKNOWN = const(0)
 TIMESOURCE_NTP = const(1)
 TIMESOURCE_GPS = const(2)
+TIMESOURCE_SIMULATOR = const(3)
 
 SOURCE_NAMES = {
     TIMESOURCE_UNKNOWN: "unknown",
     TIMESOURCE_NTP: "ntp",
     TIMESOURCE_GPS: "gps",
+    TIMESOURCE_SIMULATOR: "simulator",
 }
 
 
 class TimeManager:
-    def __init__(self, network, update_interval_per_source=None):
+    def __init__(self, registry, update_interval_per_source=None):
         self._logger = logging.getLogger(__name__)
 
         import __version__
@@ -36,8 +38,15 @@ class TimeManager:
         self.has_valid_time = self.is_valid_time(time.time())
         self.last_time_update = None
         self.last_time_source = TIMESOURCE_UNKNOWN
+        self.boot_time = None
 
-        network.on_connect_task(self._on_network_connect)
+        self._in_simulator = registry.in_simulator
+
+        if not self._in_simulator:
+            registry.network.on_connect_task(self._on_network_connect)
+        else:
+            # In the simulator, send one fake time update
+            self.set_time(TIMESOURCE_SIMULATOR, time.time())
 
     def is_valid_time(self, t):
         return time.gmtime(t)[0] >= self._minimum_year
@@ -54,8 +63,9 @@ class TimeManager:
         if not self.needs_time_update(source):
             return
 
-        tm = time.gmtime(t)
-        machine.RTC().datetime((tm[0], tm[1], tm[2], tm[6] + 1, tm[3], tm[4], tm[5], 0))
+        if not self._in_simulator:
+            tm = time.gmtime(t)
+            machine.RTC().datetime((tm[0], tm[1], tm[2], tm[6] + 1, tm[3], tm[4], tm[5], 0))
 
         self._logger.info(
             "Setting time to %s (source: %s)", _isotime(t), SOURCE_NAMES[source]
@@ -64,6 +74,7 @@ class TimeManager:
         self.last_time_source = source
         self.last_time_update = t
         self.has_valid_time = True
+        self.boot_time = t
 
     async def _on_network_connect(self, _state):
         if self.needs_time_update(TIMESOURCE_NTP):
@@ -90,4 +101,5 @@ class TimeManager:
             "source": SOURCE_NAMES[self.last_time_source],
             "last_update": _isotime(self.last_time_update),
             "has_valid_time": self.has_valid_time,
+            "boot_time": _isotime(self.boot_time),
         }
