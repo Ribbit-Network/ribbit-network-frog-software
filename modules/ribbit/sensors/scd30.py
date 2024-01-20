@@ -149,7 +149,7 @@ class SCD30(_base.PollingSensor):
             await asyncio.sleep_ms(100)
 
     async def initialize(self):
-        self._send_command(_CMD_SET_MEASUREMENT_INTERVAL, self._mesurement_interval)
+        await self._send_command(_CMD_SET_MEASUREMENT_INTERVAL, self._mesurement_interval)
 
         self._temperature_offset = await self._read_register(
             _CMD_SET_TEMPERATURE_OFFSET
@@ -158,7 +158,7 @@ class SCD30(_base.PollingSensor):
             "Current temperature offset: %.2f °C", self._temperature_offset / 100
         )
 
-        self._send_command(_CMD_AUTOMATIC_SELF_CALIBRATION, 1)
+        await self._send_command(_CMD_AUTOMATIC_SELF_CALIBRATION, 1)
         self._initialized = True
 
     async def read_once(self):
