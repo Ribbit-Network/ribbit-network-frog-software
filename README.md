@@ -57,13 +57,18 @@ $ make build
 
 Connect the esp32 board to your computer using the USBC connection port on the esp32 and a cable that will connect to your computer.
 
-Press and hold the "boot" button then press the "reset" button and release both at the same time (shown below). This puts the esp32 into a flashing mode.
+Press and hold the "boot" button, then press and release the "reset" button, then release the "boot" button (shown below). This puts the esp32 into a flashing mode. If done correctly, the lights should turn off.
 
 ![image](https://github.com/Ribbit-Network/ribbit-network-frog-software/assets/2559382/046c0e77-cf4e-4546-bbd3-f41e9f136bc7)
 
 The device should now appear on your machine as a serial port like "/dev/ttyACM0".
 
-Now the command below can be run to flash the software to the device.
+You can find your device within the output of:
+```shell
+$ ls /dev/tty*
+```
+
+Now the command below can be run to flash the software to the device. Replace the device name with yours.
 
 ```shell
 $ make DEVICE=/dev/ttyACM0 flash

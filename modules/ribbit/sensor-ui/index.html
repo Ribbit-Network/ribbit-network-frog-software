@@ -141,6 +141,7 @@
         <div class="other-info">
             <div class="sensor-title">Other Info</div>
             <div id="other-info-content"></div>
+            <div id ="firmware-version"></div>
         </div>
       </div>
     </div>
@@ -195,6 +196,10 @@
 
             // Update GPS data
             updateData('GPS', getGPSData(data));
+
+            // Display firmware version under Other Info
+            firmwareVersion = document.getElementById('firmware-version');
+            firmwareVersion.innerHTML = `<b>Firmware Version</b>: ${getFirmwareVersion(data)}<br/>`;
 
             prevData = data;
         });
@@ -279,6 +284,11 @@
 
             return ret;
         }
+        
+        // Get the firmware version from the board sensor
+        const getFirmwareVersion = (data) => {
+            return data.board.version;
+        };
 
         const registryPath = getRoute('/api/config');
         fetch(registryPath)
