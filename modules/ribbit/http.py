@@ -49,28 +49,8 @@ def build_app(registry):
         while True:
             await asyncio.sleep_ms(1000)
             ret = collections.OrderedDict()
-            for sensor in registry.sensors.values():
-                if sensor.config.name == "dps310":
-                    ret[sensor.config.name] = {
-                        "temperature": sensor.temperature,
-                        "pressure": sensor.pressure,
-                        "t": isotime(sensor.last_update),
-                    }
-                elif sensor.config.name == "scd30":
-                    ret[sensor.config.name] = {
-                        "temperature": sensor.temperature,
-                        "co2": sensor.co2,
-                        "humidity": sensor.humidity,
-                        "t": isotime(sensor.last_update),
-                    }
-                elif sensor.config.name == "gps":
-                    ret[sensor.config.name] = {
-                        "has_fix": sensor.has_fix,
-                        "latitude": sensor.latitude,
-                        "longitude": sensor.longitude,
-                        "altitude": sensor.altitude,
-                        "t": isotime(sensor.last_update),
-                    }
+            for sensor_id, sensor in registry.sensors.items():
+                ret[sensor_id] = sensor.export()
 
             await ws.send(json.dumps(ret))
 

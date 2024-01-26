@@ -101,11 +101,11 @@ async def _main():
     default_sensors = [
         {
             "type": "board",
-            "id": "",
+            "id": "board",
         },
         {
             "type": "memory",
-            "id": "",
+            "id": "memory",
         },
     ]
 
@@ -114,17 +114,17 @@ async def _main():
             [
                 {
                     "type": "gps",
-                    "id": f"gps:{_gps.DEFAULT_ADDR}",
+                    "id": "gps",
                     "address": _gps.DEFAULT_ADDR,
                 },
                 {
                     "type": "dps310",
-                    "id": f"dps310:{_dps310.DEFAULT_ADDR}",
+                    "id": "dps310",
                     "address": _dps310.DEFAULT_ADDR,
                 },
                 {
                     "type": "scd30",
-                    "id": f"scd30:{_scd30.DEFAULT_ADDR}",
+                    "id": "scd30",
                     "address": _scd30.DEFAULT_ADDR,
                 },
             ]

@@ -254,19 +254,15 @@ class GPS(_base.BaseSensor):
         pass
 
     def export(self):
-        sensor_id = self._sensor_id
         return {
             "t": isotime(self.last_update),
-            "@type": "ribbitnetwork.sensor.Location",
-            "sensor_model": "gnss",
-            "sensor_id": sensor_id,
+
+            "has_fix": self.has_fix,
+
             "latitude": self.latitude,
             "longitude": self.longitude,
             "altitude": self.altitude,
-            "gnss": {
-                "has_fix": self.has_fix,
-                "last_fix": isotime(self.last_fix),
-                "geoid_height": self.geoid_height,
-                "satellites_count": self.satellites,
-            },
+
+            "geoid_height": self.geoid_height,
+            "satellites_count": self.satellites,
         }

@@ -9,6 +9,9 @@ class BaseSensor:
         self._sensor_id = id
         self._logger = logging.getLogger("sensor." + self.config.name)
 
+    def export(self):
+        return {}
+
 
 class PollingSensor(BaseSensor):
     def __init__(self, registry, id, interval):
@@ -27,6 +30,3 @@ class PollingSensor(BaseSensor):
 
     async def read_once(self):
         pass
-
-    def export(self):
-        return {}
