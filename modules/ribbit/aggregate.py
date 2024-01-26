@@ -21,34 +21,8 @@ class SensorAggregator:
             await asyncio.sleep_ms(5000)
 
             ret = collections.OrderedDict()
-            for sensor in self._registry.sensors.values():
-                if sensor.config.name == "dps310":
-                    ret[sensor.config.name] = {
-                        "temperature": sensor.temperature,
-                        "pressure": sensor.pressure,
-                        "t": isotime(sensor.last_update),
-                    }
-                elif sensor.config.name == "scd30":
-                    ret[sensor.config.name] = {
-                        "temperature": sensor.temperature,
-                        "co2": sensor.co2,
-                        "humidity": sensor.humidity,
-                        "t": isotime(sensor.last_update),
-                    }
-                elif sensor.config.name == "gps":
-                    ret[sensor.config.name] = {
-                        "has_fix": sensor.has_fix,
-                        "latitude": sensor.latitude,
-                        "longitude": sensor.longitude,
-                        "altitude": sensor.altitude,
-                        "t": isotime(sensor.last_update),
-                    }
-                elif sensor.config.name == "memory":
-                    ret[sensor.config.name] = {
-                        "allocated": sensor.allocated,
-                        "free": sensor.free,
-                    }
-
+            for sensor_id, sensor in self._registry.sensors.items():
+                ret[sensor_id] = sensor.export()
 
             ret["time_manager"] = self._registry.time_manager.export()
 

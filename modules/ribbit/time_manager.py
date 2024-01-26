@@ -98,8 +98,9 @@ class TimeManager:
 
     def export(self):
         return {
+            "t": _isotime(self.last_time_update),
+
             "source": SOURCE_NAMES[self.last_time_source],
-            "last_update": _isotime(self.last_time_update),
             "has_valid_time": self.has_valid_time,
             "boot_time": _isotime(self.boot_time),
         }

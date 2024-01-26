@@ -184,22 +184,9 @@ class DPS310(_base.PollingSensor):
         self.last_update = time.time()
 
     def export(self):
-        t = isotime(self.last_update)
-        sensor_id = self._sensor_id
+        return {
+            "t": isotime(self.last_update),
 
-        return [
-            {
-                "t": t,
-                "@type": "ribbitnetwork.sensor.Temperature",
-                "sensor_model": "dps310",
-                "sensor_id": sensor_id,
-                "temperature": self.temperature,
-            },
-            {
-                "t": t,
-                "@type": "ribbitnetwork.sensor.Pressure",
-                "sensor_model": "dps310",
-                "sensor_id": sensor_id,
-                "pressure": self.pressure,
-            },
-        ]
+            "temperature": self.temperature,
+            "pressure": self.pressure,
+        }

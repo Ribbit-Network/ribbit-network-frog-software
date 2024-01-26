@@ -208,43 +208,15 @@ class SCD30(_base.PollingSensor):
         self.humidity = humidity
 
     def export(self):
-        t = isotime(self.last_update)
-        sensor_id = self._sensor_id
-        co2_concentration = self.co2
-        temperature = self.temperature
-        temperature_offset = (
-            self._temperature_offset / 100
-            if self._temperature_offset is not None
-            else None
-        )
-        humidity = self.humidity
+        return {
+            "t": isotime(self.last_update),
 
-        return [
-            {
-                "t": t,
-                "@type": "ribbitnetwork.sensor.Concentration",
-                "sensor_model": "scd30",
-                "sensor_id": sensor_id,
-                "gas_type": "co2",
-                "concentration": co2_concentration,
-                "scd30": {
-                    "temperature": temperature,
-                    "temperature_offset": temperature_offset,
-                    "humidity": humidity,
-                },
-            },
-            {
-                "t": t,
-                "@type": "ribbitnetwork.sensor.Temperature",
-                "sensor_model": "scd30",
-                "sensor_id": sensor_id,
-                "temperature": temperature,
-            },
-            {
-                "t": t,
-                "@type": "ribbitnetwork.sensor.Humidity",
-                "sensor_model": "scd30",
-                "sensor_id": sensor_id,
-                "humidity": humidity,
-            },
-        ]
+            "temperature": self.temperature,
+            "temperature_offset": (
+                self._temperature_offset / 100
+                if self._temperature_offset is not None
+                else None
+            ),
+            "co2": self.co2,
+            "humidity": self.humidity,
+        }
