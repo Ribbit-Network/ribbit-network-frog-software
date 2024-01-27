@@ -22,10 +22,6 @@ jobs:
     - name: Test
       run: |
           make test
-    
-    - name: Generate Local UI
-      run: |
-          make ui
 
     - name: Build
       run: |

@@ -7,7 +7,7 @@ BUILD_DIR := ${PORT_DIR}/build-${BOARD}
 DEVICE := /dev/ttyACM*
 
 .PHONY: build
-build: ui ${MP_DIR}/mpy-cross/build/mpy-cross
+build: ${MP_DIR}/mpy-cross/build/mpy-cross modules/ribbit/_static.py
 	rm -f ${BUILD_DIR}/frozen_content.c
 	ln -sfn ${CURDIR}/board ${PORT_DIR}/boards/ribbit
 	make -C ${PORT_DIR} BOARD=${BOARD} FROZEN_MANIFEST=${CURDIR}/manifest.py
@@ -19,8 +19,7 @@ build: ui ${MP_DIR}/mpy-cross/build/mpy-cross
 ${MP_DIR}/mpy-cross/build/mpy-cross:
 	make -C ${MP_DIR}/mpy-cross
 
-.PHONY: ui
-ui:
+modules/ribbit/_static.py: modules/ribbit/sensor-ui/*
 	python3 ./tools/generate_static.py
 
 ${UNIX_DIR}/build-standard/micropython: ${MP_DIR}/mpy-cross/build/mpy-cross
@@ -36,7 +35,7 @@ ${UNIX_DIR}/build-simulator/micropython:
 	make -C ${MP_DIR}/ports/unix -j VARIANT=simulator
 
 .PHONY: simulator
-simulator: ${UNIX_DIR}/build-simulator/micropython
+simulator: ${UNIX_DIR}/build-simulator/micropython modules/ribbit/_static.py
 	cd modules ; ${UNIX_DIR}/build-simulator/micropython -m main
 
 .PHONY: flash
@@ -51,4 +50,4 @@ flash: build
 
 .PHONY: clean
 clean:
-	rm -rf ${BUILD_DIR} ${UNIX_DIR}/build-standard ${UNIX_DIR}/build-simulator
+	rm -rf ${BUILD_DIR} ${UNIX_DIR}/build-standard ${UNIX_DIR}/build-simulator modules/ribbit/_static.py
