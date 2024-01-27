@@ -10,7 +10,6 @@ freeze("modules")
 module("microdot.py", "vendor/microdot/src")
 module("microdot_asyncio.py", "vendor/microdot/src")
 module("microdot_websocket.py", "vendor/microdot/src")
-module("microdot_asyncio_websocket.py", "vendor/microdot/src")
 
 version = subprocess.check_output(
     [

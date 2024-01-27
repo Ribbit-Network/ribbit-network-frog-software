@@ -3,7 +3,6 @@ import asyncio
 import collections
 
 from microdot_asyncio import Microdot, Request, Response, HTTPException
-from microdot_asyncio_websocket import with_websocket
 
 from ._static import assets
 from .config import DOMAIN_LOCAL, DOMAIN_NAMES
@@ -44,15 +43,12 @@ def build_app(registry):
         return data, 200, headers
     
     @app.route("/api/sensors")
-    @with_websocket
-    async def sensor_status(request, ws):
-        while True:
-            await asyncio.sleep_ms(1000)
-            ret = collections.OrderedDict()
-            for sensor_id, sensor in registry.sensors.items():
-                ret[sensor_id] = sensor.export()
+    async def sensor_status(request):
+        ret = collections.OrderedDict()
+        for sensor_id, sensor in registry.sensors.items():
+            ret[sensor_id] = sensor.export()
 
-            await ws.send(json.dumps(ret))
+        return json.dumps(ret), 200, {"Content-Type": "application/json"}
 
     @app.route("/api/config")
     def config_get(request):

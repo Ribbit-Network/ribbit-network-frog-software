@@ -146,11 +146,6 @@
     </div>
 
     <script>
-        const getSocket = (path) => {
-          const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-          return new WebSocket(`${protocol}//${location.host}${path}`);
-        };
-
         const getRoute = (path) => {
           const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
           return `${protocol}//${location.host}${path}`;
@@ -183,21 +178,23 @@
         };
   
         // Get sensor data
-        const sensorSocket = getSocket('/api/sensors');
-        sensorSocket.addEventListener('message', ev => {
-            const data = JSON.parse(ev.data);
+        setInterval(() => {
+            const registryPath = getRoute('/api/sensors');
+            fetch(registryPath)
+            .then(response => response.json())
+            .then(data => {
+                // Update barometer data
+                updateData('Barometer', getBarometerData(data));
 
-            // Update barometer data
-            updateData('Barometer', getBarometerData(data));
+                // Update CO2 data
+                updateData('CO2', getCO2Data(data));
 
-            // Update CO2 data
-            updateData('CO2', getCO2Data(data));
+                // Update GPS data
+                updateData('GPS', getGPSData(data));
 
-            // Update GPS data
-            updateData('GPS', getGPSData(data));
-
-            prevData = data;
-        });
+                prevData = data;
+            });
+        }, 1000)
 
         // Get data from each of the sensors
         // Return format is { status: true/false, data: { key: value }, lastUpdated: 'time' }
