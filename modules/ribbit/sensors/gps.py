@@ -160,7 +160,7 @@ class GPS(_base.BaseSensor):
 
             if not seen_data and previous_update != self.last_update:
                 previous_update = self.last_update
-                await self._output.write(self.export())
+                await self._output.write(self, self.export())
 
             try:
                 await asyncio.wait_for_ms(
