@@ -69,6 +69,7 @@ async def _main():
     if not in_simulator:
         import ribbit.network as _network
     import ribbit.sensors.dps310 as _dps310
+    import ribbit.sensors.battery as _battery
     import ribbit.sensors.board as _board
     import ribbit.sensors.gps as _gps
     import ribbit.sensors.scd30 as _scd30
@@ -94,11 +95,16 @@ async def _main():
         "gps": _gps.GPS,
         "dps310": _dps310.DPS310,
         "scd30": _scd30.SCD30,
+        "battery": _battery.Battery,
         "board": _board.Board,
         "memory": _board.Memory,
     }
 
     default_sensors = [
+        {
+            "type": "battery",
+            "id": "battery",
+        },
         {
             "type": "board",
             "id": "board",
