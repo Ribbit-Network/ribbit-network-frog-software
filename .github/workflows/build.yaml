@@ -29,12 +29,24 @@ jobs:
           docker run -t -u "$UID:$GID" -e "HOME=/app" -v "${GITHUB_WORKSPACE}:/app" -w "/app" espressif/idf:v5.1.2 make
       shell: bash
 
-    - name: Upload to Golioth
+    - name: Upload to Golioth (Main)
+      if: if: {{ github.ref == 'ref/head/main' }}
+      run: |
+        python ./tools/upload-to-golioth.py
+      env:
+        GOLIOTH_PROJECT: ribbit
+        # Beta V4 Blueprint
+        GOLIOTH_BLUEPRINT: 65c3ebd0f4542d968bf23817
+        GOLIOTH_API_KEY: ${{ secrets.GOLIOTH_API_KEY }}
+      shell: bash
+
+    - name: Upload to Golioth (Release)
       if: startsWith(github.ref, 'refs/tags/v')
       run: |
         python ./tools/upload-to-golioth.py
       env:
         GOLIOTH_PROJECT: ribbit
+        # Production V4 Blueprint
         GOLIOTH_BLUEPRINT: 638a8a406a504ec89e7b18ee
         GOLIOTH_API_KEY: ${{ secrets.GOLIOTH_API_KEY }}
       shell: bash
