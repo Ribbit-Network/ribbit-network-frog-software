@@ -22,8 +22,8 @@ class Battery(_base.PollingSensor):
         ],
     )
 
-    REG_VCELL = 0x02
-    ADDRESS = 0x36
+    REG_VCELL = 0x09
+    ADDRESS = 0x0B
 
     # The constructor for the battery sensor.
     # The registry is passed in, which contains the i2c bus.
@@ -44,8 +44,8 @@ class Battery(_base.PollingSensor):
     # The read_once method is called every time the sensor is polled.
     async def read_once(self):
         # Read the two bytes of voltage from the sensor.
-        bytes = self._i2c_bus.readfrom_mem(self.ADDRESS, self.REG_VCELL, 2)
-        self.voltage = unpack(">H", bytes)[0] * 78.125 / 1_000_000
+        mv_data = int.from_bytes(self._i2c_bus.readfrom_mem(self.ADDRESS, self.REG_VCELL, 2), 'little') & 0xFFFF
+        self.voltage = mv_data / 1000
 
     # The export method is called to get the data from the sensor.
     def export(self):
