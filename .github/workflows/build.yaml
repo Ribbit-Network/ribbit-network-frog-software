@@ -30,7 +30,7 @@ jobs:
       shell: bash
 
     - name: Upload to Golioth (Main)
-      if: if: {{ github.ref == 'ref/head/main' }}
+      if: {{ github.ref == 'ref/head/main' }}
       run: |
         python ./tools/upload-to-golioth.py
       env:
