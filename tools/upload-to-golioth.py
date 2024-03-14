@@ -52,7 +52,6 @@ r = session.post(
             "artifactIds": [
                 artifact["data"]["id"],
             ],
-            "rollout":rollout
         }
     ),
     headers={
