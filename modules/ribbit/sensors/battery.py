@@ -44,7 +44,7 @@ class Battery(_base.PollingSensor):
     # The read_once method is called every time the sensor is polled.
     async def read_once(self):
         # Read the two bytes of voltage from the sensor.
-        bytes = self._i2c.readfrom_mem(self.ADDRESS, self.REG_VCELL, 2)
+        bytes = self._i2c_bus.readfrom_mem(self.ADDRESS, self.REG_VCELL, 2)
         self.voltage = unpack(">H", bytes)[0] * 78.125 / 1_000_000
 
     # The export method is called to get the data from the sensor.
