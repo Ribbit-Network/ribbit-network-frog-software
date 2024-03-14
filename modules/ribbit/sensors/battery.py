@@ -1,6 +1,8 @@
 import time
 import asyncio
 
+from struct import unpack
+
 import ribbit.config as _config
 from ribbit.utils.time import isotime
 
@@ -11,7 +13,6 @@ from . import base as _base
 # The battery sensor on the board is the max17048 sensor.
 # That sensor can be found on the main i2c bus at address 0x36.
 
-
 class Battery(_base.PollingSensor):
     # The configuration schema for the battery sensor.
     config = _config.Object(
@@ -20,6 +21,9 @@ class Battery(_base.PollingSensor):
             _config.Integer(name="interval", default=60),
         ],
     )
+
+    REG_VCELL = 0x02
+    ADDRESS = 0x36
 
     # The constructor for the battery sensor.
     # The registry is passed in, which contains the i2c bus.
@@ -39,15 +43,9 @@ class Battery(_base.PollingSensor):
 
     # The read_once method is called every time the sensor is polled.
     async def read_once(self):
-        # Write the command to read the voltage to the sensor.
-        self._i2c_bus.writeto(self._i2c_addr, b"\x02")
-
-        # Read the voltage from the sensor.
-        self._i2c_bus.readfrom_into(self._i2c_addr, self._buf)
-
-        # The voltage is a 12-bit value, so we need to combine the two bytes we read into a single value.
-        # The voltage is in millivolts, so we need to divide by 16 to get the actual voltage.
-        self.voltage = (self._buf[0] << 4) | (self._buf[1] >> 4)
+        # Read the two bytes of voltage from the sensor.
+        bytes = self._i2c.readfrom_mem(self.ADDRESS, self.REG_VCELL, 2)
+        self.voltage = unpack(">H", bytes)[0] * 78.125 / 1_000_000
 
     # The export method is called to get the data from the sensor.
     def export(self):
