@@ -38,6 +38,7 @@ jobs:
         # Beta V4 Blueprint
         GOLIOTH_BLUEPRINT: 65c3ebd0f4542d968bf23817
         GOLIOTH_API_KEY: ${{ secrets.GOLIOTH_API_KEY }}
+        GOLIOTH_ROLLOUT: true
       shell: bash
 
     - name: Upload to Golioth (Release)
@@ -49,6 +50,7 @@ jobs:
         # Production V4 Blueprint
         GOLIOTH_BLUEPRINT: 638a8a406a504ec89e7b18ee
         GOLIOTH_API_KEY: ${{ secrets.GOLIOTH_API_KEY }}
+        GOLIOTH_ROLLOUT: false
       shell: bash
 
     - name: Upload artifacts

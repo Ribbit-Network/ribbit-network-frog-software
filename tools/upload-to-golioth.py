@@ -21,6 +21,8 @@ session.headers["x-api-key"] = os.environ["GOLIOTH_API_KEY"]
 
 project = os.environ["GOLIOTH_PROJECT"]
 blueprint = os.environ["GOLIOTH_BLUEPRINT"]
+rollout = os.environ.get("GOLIOTH_ROLLOUT", "false")
+
 
 req = {
     "blueprintId": blueprint,
@@ -50,6 +52,7 @@ r = session.post(
             "artifactIds": [
                 artifact["data"]["id"],
             ],
+            "rollout":rollout
         }
     ),
     headers={
