@@ -84,7 +84,9 @@ class Battery(_base.PollingSensor):
     
     async def _read_register(self, reg):
         # Read the register from the sensor.
-        data = int.from_bytes(self._i2c_bus.readfrom_mem(self.ADDRESS, reg, 2), 'little') & 0xFFFF
+        async with self._i2c_bus.lock:
+            data = int.from_bytes(self._i2c_bus.readfrom_mem(self.ADDRESS, reg, 2), 'little') & 0xFFFF
+            await asyncio.sleep_ms(10)
         return data
     
     async def _write_register(self, reg, data):
@@ -95,14 +97,17 @@ class Battery(_base.PollingSensor):
         data_array[2] = (data & 0x00FF)
         data_array[3] = ((data & 0xFF00) >> 8)
         data_array[4] = self._crc8(data_array[:4])
+
         # Write the register to the sensor.
-        self._i2c_bus.writeto_mem(self.ADDRESS, reg, data_array[3:])
+        async with self._i2c_bus.lock:
+            self._i2c_bus.writeto_mem(self.ADDRESS, reg, data_array[3:])
+            await asyncio.sleep_ms(10)
 
     async def wakeup(self):
-        self._write_register(self.REG_POWER, 0x0001)
+        await self._write_register(self.REG_POWER, 0x0001)
 
     async def sleep(self):
-        self._write_register(self.REG_POWER, 0x0002)
+        await self._write_register(self.REG_POWER, 0x0002)
 
     # The read_once method is called every time the sensor is polled.
     async def read_once(self):
@@ -110,10 +115,10 @@ class Battery(_base.PollingSensor):
         await self.wakeup()
 
         # Wait for 0.5 seconds for the sensor to wake up
-        await asyncio.sleep(0.5)
+        await asyncio.sleep_ms(500)
 
         # Read the two bytes of voltage from the sensor.
-        mv_data = self._read_register(self.REG_VCELL)
+        mv_data = await self._read_register(self.REG_VCELL)
         self.voltage = mv_data / 1000
 
         # Put the sensor to sleep
