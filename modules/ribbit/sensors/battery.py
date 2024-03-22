@@ -79,7 +79,7 @@ class Battery(_base.PollingSensor):
         self.voltage = None
 
     async def _crc8(self, data):
-        crc = 0xFF
+        crc = 0
         for d in data:
             crc = CRC_TABLE[crc ^ d]
         return crc
