@@ -76,6 +76,8 @@ class Battery(_base.PollingSensor):
         # The i2c bus is stored in the registry, so we can access it here.
         self._i2c_bus = registry.i2c_bus
 
+        self.voltage = None
+
     async def _crc8(self, data):
         crc = 0xFF
         for d in data:
