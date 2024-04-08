@@ -22,7 +22,7 @@ mkdir -p ~/esp
 cd ~/esp
 git clone --recursive https://github.com/espressif/esp-idf.git
 cd esp-idf
-git checkout v4.4.1
+git checkout v5.1.2
 git submodule update --init --recursive
 ./install.sh all
 ```
