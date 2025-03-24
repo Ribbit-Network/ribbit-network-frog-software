@@ -9,7 +9,7 @@ PR #15764 moved DTLS from the ssl module to the tls module.
 import unittest
 import socket
 import io
-from unittest.mock import patch, MagicMock
+from ribbit.utils.mock import MagicMock, patch
 
 # Import modules we need to test
 import tls
@@ -49,45 +49,58 @@ class TestCoAPDTLS(unittest.TestCase):
         
     def tearDown(self):
         socket.getaddrinfo = self.original_getaddrinfo
-        
-    @patch('tls.SSLContext')
-    @patch('socket.socket')
-    def test_coap_uses_tls_module(self, mock_socket, mock_ssl_context):
+    
+    def test_coap_uses_tls_module(self):
         """Test that CoAP client uses the TLS module for DTLS."""
-        # Setup mock objects
+        # Create mock objects
+        mock_socket = MagicMock()
         mock_socket_instance = MagicMock()
         mock_socket.return_value = mock_socket_instance
         
+        original_socket = socket.socket
+        socket.socket = mock_socket
+        
         mock_context = MagicMock()
-        mock_ssl_context.return_value = mock_context
-        mock_wrapped_socket = MagicMock()
-        mock_context.wrap_socket.return_value = mock_wrapped_socket
+        mock_wrap_socket = MagicMock()
+        mock_context.wrap_socket = mock_wrap_socket
         
-        # Create a CoAP client with DTLS enabled
-        coap = Coap(
-            host="example.org",
-            port=5684,
-            ssl=True  # Enable DTLS
-        )
+        original_ssl_context = tls.SSLContext
+        tls.SSLContext = MagicMock(return_value=mock_context)
         
-        # This should trigger the creation of the SSLContext with DTLS client mode
         try:
+            # Create a CoAP client with DTLS enabled
+            coap = Coap(
+                host="example.org",
+                port=5684,
+                ssl=True  # Enable DTLS
+            )
+            
+            # Mock asyncio for connect
             import asyncio
-            asyncio.run_until_complete = MagicMock()
+            original_create_task = asyncio.create_task
             asyncio.create_task = MagicMock()
+            original_event = asyncio.Event
             asyncio.Event = MagicMock()
             
-            # Call connect to initialize the socket with TLS
-            coap.connect()
-        except Exception:
-            # We expect an exception due to incomplete mocking of asyncio
-            pass
+            try:
+                # Call connect to initialize the socket with TLS
+                coap.connect()
+            except Exception as e:
+                # We expect an exception due to incomplete mocking of asyncio
+                pass
+                
+            # Verify that the TLS SSLContext was created with DTLS client mode
+            tls.SSLContext.assert_called_with(tls.PROTOCOL_DTLS_CLIENT)
             
-        # Verify that the TLS SSLContext was created with DTLS client mode
-        mock_ssl_context.assert_called_with(tls.PROTOCOL_DTLS_CLIENT)
-        
-        # Verify that the socket was wrapped with wrap_socket
-        mock_context.wrap_socket.assert_called()
+            # Verify that wrap_socket was called
+            mock_context.wrap_socket.assert_called()
+            
+        finally:
+            # Restore original functions
+            socket.socket = original_socket
+            tls.SSLContext = original_ssl_context
+            asyncio.create_task = original_create_task
+            asyncio.Event = original_event
 
 
 def run_tests():
