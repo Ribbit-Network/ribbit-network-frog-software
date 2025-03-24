@@ -3,6 +3,7 @@ import logging
 import time
 from micropython import const
 import asyncio
+import tls
 
 import ribbit.config as _config
 import ribbit.coap as _coap
@@ -87,9 +88,8 @@ class Golioth:
                 if enabled:
                     self._logger.info("Starting Golioth integration")
 
-                    import ssl
-                    ctx = ssl.SSLContext(
-                        ssl.PROTOCOL_DTLS_CLIENT
+                    ctx = tls.SSLContext(
+                        tls.PROTOCOL_DTLS_CLIENT
                     )
                     ctx.set_ciphers(["TLS-PSK-WITH-AES-128-CBC-SHA256"])
                     ctx.set_psk(user, password)
