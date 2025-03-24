@@ -110,6 +110,7 @@ class DtlsTestServer:
         if self.socket:
             self.socket.close()
 
+# Run the test
 if __name__ == "__main__":
     # Run the client test
     asyncio.run(test_coap_dtls_connection())
