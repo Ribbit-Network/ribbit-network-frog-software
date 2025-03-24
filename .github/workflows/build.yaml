@@ -15,7 +15,7 @@ jobs:
 
     - name: Fetch submodules
       run: |
-          git submodule update --init #--depth=1
+          git submodule update --init --recursive #--depth=1
           # ( cd vendor/micropython/ports/unix ; make submodules )
           # ( cd vendor/micropython/ports/esp32 ; make submodules )
 
