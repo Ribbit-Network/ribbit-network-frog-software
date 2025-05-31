@@ -88,7 +88,7 @@ See the [Issues](https://github.com/keenanjohnson/ghg-gas-cloud/issues) section 
 
 We have a [contributing guide](https://github.com/Ribbit-Network/ribbit-network-frog-sensor/blob/main/CONTRIBUTING.md) that details the process for making a contribution.
 
-[If you are not sure where to start or just want to chat join our developer discord here.](https://discord.gg/vq8PkDb2TC). You can also [start a discussion](https://github.com/Ribbit-Network/ribbit-network-frog-software/discussions) right here in Github.
+[If you are not sure where to start or just want to chat join our developer slack here.](https://join.slack.com/t/ribbitnetworkgroup/shared_invite/zt-2vxvbo7ld-S36SgfDiev~ZQ2zvp03FOg). You can also [start a discussion](https://github.com/Ribbit-Network/ribbit-network-frog-software/discussions) right here in Github.
 
 ## Background Information
 [See the Wiki for background research.](https://github.com/Ribbit-Network/ribbit-network-frog-sensor/blob/main/wiki/Background-Research.md) This project is inspired by some awesome research by incedible scientists in academia.
