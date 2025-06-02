@@ -8,7 +8,7 @@ This respository contains the software for the Frog Sensor.
 
 The current Ribbit Network Frog software is being developed for the [Frog Sensor Version 4.](https://github.com/Ribbit-Network/ribbit-network-frog-hardware)
 
-## Gettting Started / Dependencies
+## Getting Started / Dependencies
 
 To get started, you'll need to install a few dependencies first.
 
@@ -96,7 +96,7 @@ We have a [contributing guide](https://github.com/Ribbit-Network/ribbit-network-
 
 ## Background Information
 
-[See the Wiki for background research.](https://ribbitnetwork.notion.site/Learnings-Low-cost-sensors-for-the-measurement-of-atmospheric-composition-e3d41736c49e41ad81dcdf7e16a6573b) This project is inspired by some awesome research by incedible scientists in academia.
+[See the Wiki for background research.](https://ribbitnetwork.notion.site/Learnings-Low-cost-sensors-for-the-measurement-of-atmospheric-composition-e3d41736c49e41ad81dcdf7e16a6573b) This project is inspired by some awesome research by incredible scientists in academia.
 
 ## Ribbit Network
 
