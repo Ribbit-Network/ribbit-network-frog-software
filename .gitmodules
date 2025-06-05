@@ -1,7 +1,6 @@
 [submodule "vendor/micropython"]
 	path = vendor/micropython
-	url = https://github.com/Ribbit-Network/micropython
-	branch = pr/mbedtls
+	url = https://github.com/micropython/micropython
 	ignore = dirty
 [submodule "vendor/microdot"]
 	path = vendor/microdot

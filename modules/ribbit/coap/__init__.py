@@ -3,12 +3,11 @@ import logging
 import socket
 import random
 import os
-import ssl
 import asyncio
 import asyncio.core as _asyncio_core
+import tls
 
 from micropython import const
-
 
 _HEADER_SIZE = const(4)
 _OPTION_HEADER_SIZE = const(1)
@@ -446,8 +445,8 @@ class Coap:
             if self._ssl is not False:
                 ctx = self._ssl
                 if ctx is True:
-                    ctx = ssl.SSLContext(
-                        ssl.PROTOCOL_DTLS_CLIENT
+                    ctx = tls.TLSContext(
+                        tls.PROTOCOL_DTLS_CLIENT
                     )
 
                 sock = ctx.wrap_socket(
