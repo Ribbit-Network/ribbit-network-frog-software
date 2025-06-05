@@ -59,9 +59,9 @@ CONFIG_KEYS = [
 
 
 class Golioth:
-    def __init__(self, config, ota_manager, commands=None, in_simulator=False):
+    def __init__(self, registry, ota_manager, commands=None, in_simulator=False):
         self._logger = logging.getLogger(__name__)
-        self._config = config
+        self._registry = registry
         self._commands = commands or {}
         self._coap = None
         self._ota_manager = ota_manager
@@ -73,7 +73,7 @@ class Golioth:
         asyncio.create_task(self._loop())
 
     async def _loop(self):
-        with self._config.watch(*_CONFIG_KEYS) as cfg_watcher:
+        with self._registry.config.watch(*_CONFIG_KEYS) as cfg_watcher:
             while True:
                 enabled, host, port, user, password, self._ota_enabled = cfg_watcher.get()
 
@@ -128,7 +128,7 @@ class Golioth:
             k = k.replace("_", ".").lower()
             config[k] = v
 
-        self._config.set_remote(config)
+        self._registry.config.set_remote(config)
 
         await client.post(
             ".c/status",
@@ -172,7 +172,11 @@ class Golioth:
         command = self._commands.get(req["method"], None)
         if command is not None:
             try:
-                details = await command(*req["params"])
+                details = await command(
+                    registry=self._registry,
+                    method=req["method"],
+                    params=req["params"],
+                )
                 if details is not None:
                     details = str(details)
             except Exception as exc:

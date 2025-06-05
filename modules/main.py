@@ -100,6 +100,16 @@ async def _main():
         "memory": _board.Memory,
     }
 
+    commands = {}
+
+    for sensor_cls in sensor_types.values():
+        commands_factory = getattr(sensor_cls, "commands", None)
+        if commands_factory is None:
+            continue
+
+        for command_name, command in commands_factory().items():
+            commands[command_name] = command
+
     default_sensors = [
         {
             "type": "battery",
@@ -157,9 +167,10 @@ async def _main():
     registry.ota_manager = _ota.OTAManager(in_simulator=in_simulator)
 
     registry.golioth = _golioth.Golioth(
-        registry.config,
+        registry,
         ota_manager=registry.ota_manager,
         in_simulator=in_simulator,
+        commands=commands,
     )
 
     registry.sensors = {}

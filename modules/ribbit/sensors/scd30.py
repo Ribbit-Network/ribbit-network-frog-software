@@ -207,6 +207,23 @@ class SCD30(_base.PollingSensor):
         self.temperature = temperature
         self.humidity = humidity
 
+    @classmethod
+    def commands(cls):
+        return {
+            "scd30.force_calibration": _base.sensor_command(cls, "_force_calibration"),
+        }
+
+    async def _force_calibration(self, params):
+        if len(params) != 1:
+            raise ValueError()
+
+        value = int(params[0])
+
+        await self._send_command(
+            _CMD_SET_FORCED_RECALIBRATION_FACTOR,
+            value,
+        )
+
     def export(self):
         return {
             "t": isotime(self.last_update),
