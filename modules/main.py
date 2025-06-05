@@ -62,12 +62,13 @@ async def _main():
     import ribbit.aggregate as _aggregate
     import ribbit.config as _config
     import ribbit.golioth as _golioth
-    import ribbit.coap as _coap
     import ribbit.http as _http
     import ribbit.heartbeat as _heartbeat
+    import ribbit.homeassistant as _homeassistant
 
     if not in_simulator:
         import ribbit.network as _network
+    import ribbit.sensors as _sensors
     import ribbit.sensors.dps310 as _dps310
     import ribbit.sensors.battery as _battery
     import ribbit.sensors.board as _board
@@ -83,6 +84,12 @@ async def _main():
     registry = Registry()
     registry.in_simulator = in_simulator
 
+    try:
+        from machine import unique_id
+        registry.unique_id = unique_id()
+    except ImportError:
+        registry.unique_id = "simulator"
+
     _aggregate.SensorAggregator(registry)
     _heartbeat.Heartbeat(in_simulator)
 
@@ -90,6 +97,7 @@ async def _main():
     if not in_simulator:
         config_schema.extend(_network.CONFIG_KEYS)
     config_schema.extend(_golioth.CONFIG_KEYS)
+    config_schema.extend(_homeassistant.CONFIG_KEYS)
 
     sensor_types = {
         "gps": _gps.GPS,
@@ -164,26 +172,7 @@ async def _main():
 
     registry.sensors = {}
 
-    class Output:
-        def __init__(self):
-            self._logger = logging.getLogger("output")
-
-        async def write(self, data):
-            coap = registry.golioth._coap
-            if coap is None or not coap.connected:
-                return
-
-            if isinstance(data, dict):
-                data = [data]
-
-            for item in data:
-                try:
-                    typ = item.pop("@type")
-                    data = json.dumps(item)
-                except Exception:
-                    pass
-
-    registry.sensors_output = Output()
+    registry.sensors_output = _sensors.Output()
 
     if not in_simulator:
         registry.i2c_bus = _i2c.LockableI2CBus(
@@ -210,6 +199,8 @@ async def _main():
         _setup_improv(registry)
 
     registry.ota_manager.successful_boot()
+
+    registry.homeassistant = _homeassistant.HomeAssistant(registry)
 
     app = _http.build_app(registry)
     asyncio.create_task(
